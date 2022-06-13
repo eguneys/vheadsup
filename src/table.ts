@@ -79,10 +79,6 @@ export class Table {
     })
 
 
-    createEffect(() => {
-      console.log(this.m_rect())
-    })
-
     this.m_drag = createMemo(() => {
       let $ref = m_ref()
       if ($ref) {
@@ -93,12 +89,14 @@ export class Table {
 
     this.a_stacks = make_stacks(this)
 
+    setTimeout(() => {
     this.a_stacks.stacks = [
       'zzzz2h3d@5.2-2', 
       'zzzz2h3d@2.2-2', 
       'zzzz2h3d@1-2', 
       'zzzz2h3d@4-2', 
     ]
+    }, 1000)
 
 
     let drag_decay = createMemo(() => {
@@ -106,12 +104,7 @@ export class Table {
     })
 
     createEffect(() => {
-      console.log(drag_decay())
-    })
-
-    createEffect(() => {
       if (!drag_decay()) {
-        console.log('here')
         this.stacks.forEach(_ => _.mouse_down = false)
       }
     })
@@ -119,24 +112,30 @@ export class Table {
 
 }
 
+const make_stack = (table: Table, stack: Stack) => {
+  let [_cards, _pos] = stack_pp(stack)
+
+  let v_pos = Vec2.make(...pos_vs(_pos))
+
+  let __cards = stack_cards(_cards)
+
+  let cards = __cards.map((card, i) =>
+    [card, v_pos.add(Vec2.make(0, 0.2 * i))])
+
+
+  return res
+}
 
 const make_stacks = (table: Table) => {
 
   let _stacks = createSignal([])
 
-  let m_poss_by_card = createMemo(() => {
+  let m_stacks = createMemo(() => {
     let stacks = read(_stacks)
-
-    return stacks.flatMap(stack => {
-      let [_cards, _pos] = stack_pp(stack)
-
-      let v_pos = Vec2.make(...pos_vs(_pos))
-      let cards = stack_cards(_cards)
-
-      return cards.map((card, i) =>
-       [card, v_pos.add(Vec2.make(0, 0.2 * i))])
-    })
+    return stacks.map(_ => make_stack(table, _))
   })
+
+
 
 
   let _p_cards = make_poss_resource(
@@ -148,7 +147,7 @@ const make_stacks = (table: Table) => {
 
   createEffect(() => {
     let cards = m_cards()
-    let cancel = loop_for(ticks.half * 20, (dt, dt0, i) => {
+    let cancel = loop_for(ticks.seconds, (dt, dt0, i) => {
       cards.forEach(_ => _.settle_loop(dt, dt0, i))
     })
     onCleanup(() => {
@@ -170,20 +169,15 @@ let back_klass = ['back']
 let rank_klasses = { '1': 'ace', '2': 'two', '3': 'three', '4': 'four', '5': 'five', '6': 'six', '7': 'seven', '8': 'eight', '9': 'nine', 'T': 'ten', 'J': 'jack', 'Q': 'queen', 'K': 'king' }
 let suit_klasses = { 's': 'spades', 'd': 'diamonds', 'h': 'hearts', 'c': 'clubs' }
 
-const make_card = (table: Table, 
-                   card: Card, 
-                   _pos: Pos,
-                   v_pos: Pos) => {
-
-  let [rank, suit] = card
-  let back = rank === suit
+const make_card = (table: Table, card: Card, _pos: Pos, v_pos: Pos) => { 
+  let [rank, suit] = card;
+  let back = rank === suit;
 
 
-  let m_klass = createMemo(() => (
-            back ? back_klass : [ 
-              rank_klasses[rank],
-              suit_klasses[suit]
-            ]).join(' '))
+  let m_klass = createMemo(() => (back ? back_klass : [ 
+    rank_klasses[rank],
+    suit_klasses[suit]
+  ]).join(' '));
 
   let m_style = createMemo(() => ({
     transform: `translate(calc(${_pos.x} * 100%), calc(${_pos.y} * 100%))`
@@ -209,12 +203,12 @@ const make_card = (table: Table,
     return _pos.vs.mul(vs_rect())
   })
 
+
   return {
     set $ref($ref: HTMLElement) {
       owrite(_$ref, $ref)
     },
     lerp_abs(move: Vec2) {
-      console.log(move, vs_rect(), move.div(vs_rect()))
       _pos.lerp_vs(move.div(vs_rect()))
     },
     get pos() {
@@ -237,9 +231,9 @@ const make_card = (table: Table,
 
 
 
-function make_poss_resource<ItemRef, Item, Pos>(
-  _m_poss_by_item: (_: ItemRef) => [Item, Pos] ,
-  make_item: (_: Item, p: Pos) => any, 
+function make_poss_resource<ItemRef, Item, VPos>(
+  _m_poss_by_item: (_: ItemRef) => [Item, VPos] ,
+  make_item: (_: Item, p: Pos, vp: VPos) => any, 
   make_position: () => Pos) {
 
   let _m_items = createMemo(() => _m_poss_by_item().map(_ => _[0]))
