@@ -29,8 +29,8 @@ const App = table => props => {
   return (<>
       <vcardtable ref={_ => setTimeout(() => table.$ref=_)}>
        <cards>
-         <For each={table.stacks}>{ card =>
-           <card ref={_ => setTimeout(() => card.$ref = _ ) } onMouseDown={_ => card.mouse_down = true} style={card.style} klass={card.klass}/>
+         <For each={table.cards}>{ card =>
+           <card ref={_ => setTimeout(() => card.$ref = _ ) } onMouseDown={_ => card.mouse_down = true} style={card.style} class={card.klass}/>
          }</For>
        </cards>
       </vcardtable>
