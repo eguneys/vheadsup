@@ -1,8 +1,10 @@
 import { ticks } from './shared'
-import { createRoot, createEffect, onCleanup, createSignal, createMemo, mapArray } from 'solid-js'
+import { on, createRoot, createEffect, onCleanup, createSignal, createMemo, mapArray } from 'solid-js'
 import { owrite, read, write, loop_for } from './play'
 import { make_position } from './make_util'
-import { Vec2 } from 'soli2d'
+import { loop, Vec2 } from 'soli2d'
+import Mouse from './mouse'
+import { DragDecay } from './play'
 
 /*
 setCards(['', '', ''])
@@ -38,9 +40,57 @@ export class Table {
     return this.a_stacks.stacks
   }
 
+  set $ref($ref: HTMLElement) {
+    owrite(this._$ref, $ref)
+  }
 
+
+  onScroll() {
+    owrite(this._$clear_bounds)
+  }
+
+  on_click = () => {
+    console.log('on click')
+  }
+
+  on_hover = () => {
+    //console.log('on hover')
+  }
+
+  find_inject_drag = () => {
+    //console.log('find inject drag')
+  }
+
+  find_on_drag_start = () => {
+    return this.stacks.find(_ => _.mouse_down)
+  }
 
   constructor() {
+
+    this._$ref = createSignal(undefined, { equals: false })
+    let m_ref = createMemo(() => read(this._$ref))
+
+    this._$clear_bounds = createSignal(undefined, { equals: false })
+
+
+    this.m_rect = createMemo(() => {
+      read(this._$clear_bounds)
+      return m_ref()?.getBoundingClientRect()
+    })
+
+
+    createEffect(() => {
+      console.log(this.m_rect())
+    })
+
+    this.m_drag = createMemo(() => {
+      let $ref = m_ref()
+      if ($ref) {
+        return make_drag(this, $ref)
+      }
+    })
+
+
     this.a_stacks = make_stacks(this)
 
     this.a_stacks.stacks = [
@@ -49,6 +99,22 @@ export class Table {
       'zzzz2h3d@1-2', 
       'zzzz2h3d@4-2', 
     ]
+
+
+    let drag_decay = createMemo(() => {
+      return this.m_drag()?.decay
+    })
+
+    createEffect(() => {
+      console.log(drag_decay())
+    })
+
+    createEffect(() => {
+      if (!drag_decay()) {
+        console.log('here')
+        this.stacks.forEach(_ => _.mouse_down = false)
+      }
+    })
   }
 
 }
@@ -124,8 +190,39 @@ const make_card = (table: Table,
   }))
 
 
+  let _$ref = createSignal()
+
+  let m_rect = createMemo(() => {
+    read(table._$clear_bounds)
+    return read(_$ref)?.getBoundingClientRect()
+  })
+
+  let vs_rect = createMemo(() => {
+    let r = m_rect()
+    if (r) {
+      return Vec2.make(r.width, r.height)
+    }
+    return Vec2.unit
+  })
+
+  let m_abs_pos = createMemo(() => {
+    return _pos.vs.mul(vs_rect())
+  })
 
   return {
+    set $ref($ref: HTMLElement) {
+      owrite(_$ref, $ref)
+    },
+    lerp_abs(move: Vec2) {
+      console.log(move, vs_rect(), move.div(vs_rect()))
+      _pos.lerp_vs(move.div(vs_rect()))
+    },
+    get pos() {
+      return _pos
+    },
+    get abs_pos() {
+      return m_abs_pos()
+    },
     settle_loop(dt, dt0, i) {
       _pos.lerp(v_pos.x, v_pos.y, i)
     },
@@ -169,12 +266,6 @@ function make_poss_resource<ItemRef, Item, Pos>(
     }
   }
 
-  let i = make_drag()
-  setTimeout(() => {
-    console.log(i)
-    i = undefined
-  },1000)
-
   return {
     
     release_pos(item: Item, pos: Position) {
@@ -193,28 +284,78 @@ function make_poss_resource<ItemRef, Item, Pos>(
 }
 
 
-const make_drag = () => {
-  return createRoot(dispose => {
-    let _drag_decay = createSignal()
-    let m_drag_decay = createMemo(() => read(_drag_decay))
+const make_drag = (table: Table, $ref: HTMLElement) => {
+
+  let { on_hover,
+
+    on_click,
+    find_inject_drag,
+
+    find_on_drag_start
+  } = table
 
 
-    createEffect(() => {
-      let decay = m_drag_decay()
-      if (decay) {
-        createEffect(on(update, (dt, dt0) => {
 
-          decay.target.pos.vs = decay.move
+  let _drag_decay = createSignal()
+  let m_drag_decay = createMemo(() => read(_drag_decay))
 
-          if (decay.drop) {
-            owrite(_drag_decay, undefined)
-          }
-        }))
+  let _update = createSignal([16, 16], { equals: false })
+  let update = createMemo(() => read(_update))
+
+
+  let mouse = new Mouse($ref).init()
+
+
+  loop((dt, dt0) => {
+
+    mouse.update(dt, dt0)
+    owrite(_update, [dt, dt0])
+
+    let { click, hover, drag } = mouse
+
+    if (click) {
+      on_click(click)
+    }
+
+    if (hover) {
+      on_hover(hover)
+    }
+
+
+    if (drag && !!drag.move0) {
+      let inject_drag = find_inject_drag()
+
+      if (inject_drag) {
+        owrite(_drag_decay, new DragDecay(drag, inject_drag.abs_pos, inject_drag, true))
       }
-    })
+    }
+
+    if (drag && !drag.move0) {
+      let res = find_on_drag_start(drag)
+      if (res) {
+        owrite(_drag_decay, new DragDecay(drag, res.abs_pos, res))
+      }
+    }
+  })
+
+  createEffect(() => {
+    let decay = m_drag_decay()
+    if (decay) {
+      createEffect(on(update, (dt, dt0) => {
+
+        console.log(decay.move, decay.translate)
+        decay.target.lerp_abs(decay.move)
+        if (decay.drop) {
+          owrite(_drag_decay, undefined)
+        }
+      }))
+    }
+  })
 
 
-
-    return {}
-  }) 
+  return {
+    get decay() {
+      return m_drag_decay()
+    }
+  }
 }
