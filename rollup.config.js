@@ -24,7 +24,7 @@ export default args => {
       name: 'VCardTable',
       dir: 'dist',
       ...(prod ? {
-        format: 'es'
+       // format: 'es'
       } : { sourcemap: true })
     },
     watch: {
