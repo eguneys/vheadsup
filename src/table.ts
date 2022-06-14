@@ -84,6 +84,11 @@ export class Table {
   }
 
   find_on_drag_start = () => {
+
+    if (this.drag_stack) {
+      return
+    }
+
     let splits = this.stacks.map(_ => _.find_drag_split())
     let i = splits.findIndex(Boolean)
 
@@ -220,7 +225,7 @@ const make_stack = (table: Table, stack: Stack, instant_track: boolean) => {
     if (!v) {
       return
     }
-    let cancel = loop_for(ticks.seconds, (dt, dt0, _it) => {
+    let cancel = loop_for(ticks.half, (dt, dt0, _it) => {
       m_cards().forEach((_, i, _arr) => {
         let _i = 1-(i / _arr.length),
           _i2 = (_i + 1) * (_i + 1) * (_i + 1) / 8
