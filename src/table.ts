@@ -331,7 +331,7 @@ const make_stacks = (table: Table) => {
   let m_drag_stack = createMemo(() => {
     let d = read(_drag)
     if (d && d.length > 0) {
-      return untrack(() => make_stack(table, d, true))
+      return make_stack(table, d, true)
     }
   })
 
