@@ -130,14 +130,28 @@ export class Table {
       }
     }))
 
+
+    this.sticky_pos = make_sticky_pos((item, v) => make_position(v.x, v.y))
+
     this.a_stacks = make_stacks(this)
+
+    setTimeout(() => {
+      this.a_stacks.stacks = [
+        'zzzzzzzz4hzzzzzzzz2h3d@5.2-2', 
+        'zzzz2h3d@2.2-2', 
+        'zzzz2h3d@1-2', 
+        'zzzz2h3d@4-2', 
+      ]
+    }, 3000)
+
+
 
     setTimeout(() => {
     this.a_stacks.stacks = [
       'zzzzzzzzzzzzzzzz2h3d@5.2-2', 
       'zzzz2h3d@2.2-2', 
       'zzzz2h3d@1-2', 
-      'zzzz2h3d@4-2', 
+      'zzzz2h3d4h@4-2', 
     ]
     }, 1000)
 
@@ -191,12 +205,16 @@ const make_stack = (table: Table, stack: Stack, instant_track: boolean) => {
 
   let _base_pos = _pos.clone
 
+  let gap = 0.2
+
   let res
 
   let m_cards = createMemo(mapArray(() => a_cards, 
-                                    _ => make_card(table, res, _, make_position(0, 0))))
+                                    (_, i) => {
+    let v = Vec2.make(_pos.x, _pos.y + i() * gap)
+    return make_card(table, res, _, table.sticky_pos.acquire_pos(_, v))
+  }))
 
-  let gap = 0.2
 
   const f_track_pos = () => {
     if (read(_settle)) {
@@ -213,11 +231,6 @@ const make_stack = (table: Table, stack: Stack, instant_track: boolean) => {
 
   if (instant_track) {
     createEffect(f_track_pos)
-    m_cards().forEach((_, i) => {
-      _.lerp_rel(_pos.x, _pos.y + i * gap, 1)
-    })
-  } else {
-    f_track_pos()
   }
 
   createEffect(on(_settle[0], (v) => {
@@ -378,6 +391,9 @@ const make_card = (table: Table, stack: Stack, card: Card, _pos: Pos) => {
     transform: `translate(calc(${_pos.x} * 100%), calc(${_pos.y} * 100%))`
   }))
 
+  onCleanup(() => {
+    table.sticky_pos.release_pos(card, _pos)
+  })
 
   let _$ref = createSignal()
 
@@ -439,47 +455,30 @@ const make_card = (table: Table, stack: Stack, card: Card, _pos: Pos) => {
 
 
 
-function make_poss_resource<ItemRef, Item>(
-  _m_item_by_ref: (_: ItemRef) => Item ,
-  make_item: (_: Item, p: Pos) => any, 
-  make_position: () => Pos) {
-
-  let m_items = createMemo(() => {
-    let _poss_by_item = _m_poss_by_item()
-    let _used_poss = []
-    return mapArray(_m_items, _ => {
-      let item = _poss_by_item.find(_a => _a === _ && !_used_poss.includes(_a) && _used_poss.push(_a))
-
-      let _pos = acquire_pos(item)
-      return make_item(item, _pos)
-    })()
-  })
+function make_sticky_pos<Item>(make_position: (item: Item, v: Vec2) => Pos) {
 
   let released_positions = new Map<Item, Array<Pos>>()
 
-  function acquire_pos(item: Item) {
+  function acquire_pos(item: Item, v: Vec2, instant_track: boolean = false) {
     let _ = released_positions.get(item)
-    if (_ && _.length > 0) {
+    if (!instant_track && _ && _.length > 0) {
+      _.sort((a, b) => b.vs.distance(v) - a.vs.distance(v))
       return _.pop()
     } else {
-      return make_position(item)
+      return make_position(item, v)
     }
   }
 
   return {
-    
+    acquire_pos,
     release_pos(item: Item, pos: Position) {
       let res = released_positions.get(item)
-
       if (!res) {
         res = []
         released_positions.set(item, res)
       }
       res.push(pos)
     },
-    get items() {
-      return m_items()
-    }
   }
 }
 
