@@ -32,16 +32,29 @@ const App = table => props => {
          <For each={table.cards}>{ (card, i) =>
            <Show when={card.dragging}
            fallback= {
-           <card ref={_ => setTimeout(() => card.$ref = _ ) } onMouseDown={_ => card.mouse_down = true} style={card.style} class={card.klass}/>
+           <Card ref={_ => setTimeout(() => card.$ref = _ ) } onMouseDown={_ => card.mouse_down = true} card={card}/>
            }>
            </Show>
          }</For>
          <For each={table.drag_cards}>{ card =>
-         <card ref={_ => setTimeout(() => card.$ref = _ ) } onMouseDown={_ => card.mouse_down = true} style={card.style} class={card.klass}/>
+         <Card ref={_ => setTimeout(() => card.$ref = _ ) } 
+         onMouseDown={_ => card.mouse_down = true} card={card}/>
            }</For>
        </cards>
       </vcardtable>
       </>)
+}
+
+const Card = props => {
+  return (<card 
+      ref={props.ref}
+      onMouseDown={props.onMouseDown} style={props.card.style} class={props.card.klass}>
+        <div class='top'>
+          <rank>{props.card.rank}</rank>
+          <suit>{props.card.suit}</suit>
+        </div>
+        <div class="front">{props.card.suit}</div>
+      </card>)
 }
 
 export default App

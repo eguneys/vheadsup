@@ -10,7 +10,6 @@ import { DragDecay } from './play'
 setCards(['', '', ''])
 
 'zzzz2h3d@a-b'
-
 '2h@100-50'
 
 */
@@ -400,6 +399,12 @@ const make_card = (table: Table, stack: Stack, card: Card, _pos: Pos) => {
   })
 
   return {
+    get suit() {
+      return suit
+    },
+    get rank() {
+      return rank
+    },
     card_ref: card,
     vs_rect,
     set $ref($ref: HTMLElement) {

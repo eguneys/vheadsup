@@ -19,3 +19,17 @@ cards card {
   height: calc((100% / 9) * 4 * 0.5);
   box-shadow: 1px 1px 2px black;
 }
+
+cards card .top {
+  display: flex;
+  justify-content: space-between;
+  font-size: 1.2em;
+  font-weight: bold;
+  padding: 0 0.4em;
+}
+
+cards card .front {
+  font-weight: bold;
+  font-size: 4em;
+  text-align: center;
+}
