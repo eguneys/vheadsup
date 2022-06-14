@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+    <meta charset="utf-8">
+    <title> V Card Table </title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <link rel="icon" href="/">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300&Fredoka:wght@300&family=Poppins:wght@300&display=swap" rel="stylesheet">
+
+    <style>
+body, input {
+  padding: 0;
+  margin: 0;
+  font-family: 'DM Mono', monospace;
+}
+
+#app {
+  margin: auto;
+  display: flex;
+  justify-content: center;
+  position: relative;
+  width: min(100vw, calc(100vh * 16/9));
+  aspect-ratio: 16/9;
+}
+    </style>
+  <link rel="stylesheet" type="text/css" href="/bundle.css">
+</head>
+  <body>
+    <div id='app' class='is2d'></div>
+    <script>
+
+      document.addEventListener("DOMContentLoaded", () => {
+              let api = VCardTable(document.getElementById('app'), {})
+      })
+    </script>
+  <script  src="/main.js"></script>
+</body>
+</html>
