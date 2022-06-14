@@ -29,7 +29,7 @@ const App = table => props => {
   return (<>
       <vcardtable ref={_ => setTimeout(() => table.$ref=_)}>
        <cards>
-         <For each={table.cards}>{ card =>
+         <For each={table.cards}>{ (card, i) =>
            <Show when={card.dragging}
            fallback= {
            <card ref={_ => setTimeout(() => card.$ref = _ ) } onMouseDown={_ => card.mouse_down = true} style={card.style} class={card.klass}/>

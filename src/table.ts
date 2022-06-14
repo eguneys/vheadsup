@@ -90,6 +90,8 @@ export class Table {
     if (i > -1) {
       let stack = splits[i]
       this.a_stacks.drag = stack
+
+      owrite(this._drag_split, [i, stack.length])
     }
   }
 
@@ -103,7 +105,6 @@ export class Table {
     let m_ref = createMemo(() => read(this._$ref))
 
     this._$clear_bounds = createSignal(undefined, { equals: false })
-
 
     this.m_rect = createMemo(() => {
       read(this._$clear_bounds)
@@ -139,6 +140,40 @@ export class Table {
     let drag_decay = createMemo(() => {
       return this.m_drag()?.decay
     })
+
+
+    this._drag_split = createSignal()
+
+    createEffect(() => {
+      console.log(read(this._drag_split))
+    })
+
+    createEffect(on(() => this.a_stacks.drag, (v, p) => {
+      if (!v && !!p) {
+        owrite(this._drag_split, undefined)
+      }
+    }))
+
+    createEffect(on(this._drag_split[0], (v, p) => {
+      if (!!v && !p) {
+
+        let [s_index, s_length] = v
+
+        let stack = this.stacks[s_index].slice_cards_back(s_length)
+
+        stack.forEach(_ => _.dragging = true)
+      }
+      if (!v && !!p) {
+        let [s_index, s_length] = p
+
+        let stack = this.stacks[s_index].slice_cards_back(s_length)
+
+        console.log(stack)
+        stack.forEach(_ => _.dragging = false)
+      }
+    }))
+
+
   }
 
 }
@@ -146,7 +181,7 @@ export class Table {
 const make_stack = (table: Table, stack: Stack, instant_track: boolean) => {
   let [_cards, pos] = stack_pp(stack)
 
-  let _settle = createSignal(true)
+  let _settle = createSignal(!instant_track)
   let _pos = make_position(...pos_vs(pos))
   let a_cards = stack_cards(_cards)
 
@@ -190,7 +225,7 @@ const make_stack = (table: Table, stack: Stack, instant_track: boolean) => {
         let _i = 1-(i / _arr.length),
           _i2 = (_i + 1) * (_i + 1) * (_i + 1) / 8
         _.lerp_rel(
-          _pos.x, _pos.y + i * gap, 0.1 + (_i2 * 0.4) + _it * 0.2
+          _pos.x, _pos.y + i * gap, (_i2 * 0.2) + _it * 0.8
         )
       })
 
@@ -225,6 +260,10 @@ const make_stack = (table: Table, stack: Stack, instant_track: boolean) => {
   })
 
   res = {
+    slice_cards_back(i: number) {
+      let cards = m_cards()
+      return cards.slice(-i)
+    },
     m_drop_after_settle,
     settle_loop(reset: boolean) {
       batch(() => {
@@ -245,7 +284,6 @@ const make_stack = (table: Table, stack: Stack, instant_track: boolean) => {
 
       if (i > -1) {
         let d_stack = cards.slice(i, cards.length)
-        d_stack.forEach(_ => _.dragging = true)
         return d_stack
       }
     },
