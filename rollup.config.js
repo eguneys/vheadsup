@@ -43,7 +43,7 @@ export default args => {
         template: 'src/index.html',
         target: 'index.html',
         /* https://github.com/bengsfort/rollup-plugin-generate-html-template/issues/12 */
-        prefix: '/'
+        //prefix: '/'
       }),
       ...(prod? [] : [
         serve({ contentBase: 'dist', port: 3000, historyApiFallback: true }),
