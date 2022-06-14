@@ -1887,7 +1887,7 @@ const make_drag = (table, $ref) => {
         let inject_drag = find_inject_drag();
 
         if (inject_drag) {
-          owrite(_drag_decay, new DragDecay(drag, inject_drag.abs_pos, inject_drag, true));
+          owrite(_drag_decay, new DragDecay(drag, inject_drag.abs_pos, inject_drag));
         }
       }
     }
