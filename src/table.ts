@@ -1,5 +1,5 @@
 import { ticks } from './shared'
-import { on, createRoot, createEffect, onCleanup, createSignal, createMemo, mapArray } from 'solid-js'
+import { batch, untrack, on, createRoot, createEffect, onCleanup, createSignal, createMemo, mapArray } from 'solid-js'
 import { owrite, read, write, loop_for } from './play'
 import { make_position } from './make_util'
 import { loop, Vec2 } from 'soli2d'
@@ -146,7 +146,7 @@ export class Table {
 const make_stack = (table: Table, stack: Stack, instant_track: boolean) => {
   let [_cards, pos] = stack_pp(stack)
 
-  let _settle = createSignal(undefined, { equals: false })
+  let _settle = createSignal(true)
   let _pos = make_position(...pos_vs(pos))
   let a_cards = stack_cards(_cards)
 
@@ -160,43 +160,43 @@ const make_stack = (table: Table, stack: Stack, instant_track: boolean) => {
   let gap = 0.2
 
   const f_track_pos = () => {
+    if (read(_settle)) {
+      return
+    }
     m_cards().forEach((_, i, _arr) => {
       let _i = 1-(i / _arr.length),
         _i2 = (_i + 1) * (_i + 1) * (_i + 1) / 8
       _.lerp_rel(
-        _pos.x, _pos.y + i * gap, 0.9 + (_i2 * 0.9)
+        _pos.x, _pos.y + i * gap, 0.1 + (_i2 * 0.9)
       )
     })
   }
 
   if (instant_track) {
-    /*
-    m_cards().forEach((_, i) => {
-      _.lerp_rel(_pos.x, _pos.y + i * gap, 0.5)
-    })
-   */
-    console.trace(_pos.y)
-    createEffect(() => {
-      console.log(_pos.x)
-      onCleanup(() => {
-        console.log('here')
-      })
-    })
     createEffect(f_track_pos)
+    m_cards().forEach((_, i) => {
+      _.lerp_rel(_pos.x, _pos.y + i * gap, 1)
+    })
   } else {
     f_track_pos()
   }
 
-  createEffect(on(_settle[0], () => {
+  createEffect(on(_settle[0], (v) => {
+    if (!v) {
+      return
+    }
     let cancel = loop_for(ticks.seconds, (dt, dt0, _it) => {
       m_cards().forEach((_, i, _arr) => {
         let _i = 1-(i / _arr.length),
           _i2 = (_i + 1) * (_i + 1) * (_i + 1) / 8
         _.lerp_rel(
-          _pos.x, _pos.y + i * gap, 0.2 + (_i2 * 0.2) + _it * 0.6
+          _pos.x, _pos.y + i * gap, 0.1 + (_i2 * 0.4) + _it * 0.2
         )
       })
 
+      if (_it === 1) {
+        owrite(_settle, false)
+      }
     })
     onCleanup(() => {
       cancel()
@@ -213,15 +213,30 @@ const make_stack = (table: Table, stack: Stack, instant_track: boolean) => {
     return _pos.vs.mul(vs_rect())
   })
 
+  let drop_after_settle = false
+
+  let m_drop_after_settle = createMemo(() => {
+    if (!read(_settle)) {
+      if (drop_after_settle) {
+        return true
+      }
+    }
+    return false
+  })
 
   res = {
+    m_drop_after_settle,
     settle_loop(reset: boolean) {
-      if (reset) {
-        _pos.x = _base_pos.x
-        _pos.y = _base_pos.y
-      }
+      batch(() => {
+        if (reset) {
+          _pos.x = _base_pos.x
+          _pos.y = _base_pos.y
 
-      owrite(_settle)
+          drop_after_settle = true
+        }
+
+        owrite(_settle, true)
+      })
     },
     find_drag_split() {
       let cards = m_cards()
@@ -261,7 +276,7 @@ const make_stacks = (table: Table) => {
   let m_drag_stack = createMemo(() => {
     let d = read(_drag)
     if (d && d.length > 0) {
-      return make_stack(table, d, true)
+      return untrack(() => make_stack(table, d, true))
     }
   })
 
@@ -269,6 +284,13 @@ const make_stacks = (table: Table) => {
   createEffect(on(m_drag_stack, (v, p) => {
     if (!p && !!v) {
       table.inject_drag(v)
+    }
+    if (v) {
+      createEffect(() => {
+        if (v.m_drop_after_settle()) {
+          owrite(_drag, undefined)
+        }
+      })
     }
   }))
 
@@ -461,7 +483,6 @@ const make_drag = (table: Table, $ref: HTMLElement) => {
     if (drag && !!drag.move0) {
       if (!read(_drag_decay)) {
         let inject_drag = find_inject_drag()
-
         if (inject_drag) {
           owrite(_drag_decay, new DragDecay(drag, inject_drag.abs_pos, inject_drag, true))
         }
