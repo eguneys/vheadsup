@@ -1,4 +1,4 @@
-import { mapArray, createMemo, createSignal, batch } from 'solid-js'
+import { untrack, mapArray, createMemo, createSignal, batch } from 'solid-js'
 import { read, write, owrite } from './play'
 import { Vec2 } from 'soli2d'
 
@@ -65,7 +65,7 @@ export function make_position(x, y) {
     },
     get vs() { return m_vs() },
     get clone() {
-      return make_position(read(_x), read(_y))
+      return untrack(() => make_position(read(_x), read(_y)))
     }
   }
 }

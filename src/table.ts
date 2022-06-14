@@ -29,12 +29,25 @@ function stack_cards(cards: Cards) {
   for (let i = 0; i < cards.length; i+= 2) {
     let rank = cards[i],
       suit = cards[i+1]
-    res.push([rank, suit])
+    res.push(rank+suit)
   }
   return res
 }
 
 export class Table {
+
+  get drag_stack() {
+    return this.a_stacks.drag
+  }
+
+  get drag_cards() {
+    let { drag_stack } = this
+
+    if (drag_stack) {
+      return drag_stack.cards
+    }
+    return []
+  }
 
   get stacks() {
     return this.a_stacks.stacks
@@ -53,6 +66,11 @@ export class Table {
     owrite(this._$clear_bounds)
   }
 
+  on_up = () => {
+    this.cards.forEach(_ => _.mouse_down = false)
+    this._inject_drag = undefined
+  }
+
   on_click = () => {
     console.log('on click')
   }
@@ -61,10 +79,22 @@ export class Table {
 
   on_drag_update = () => { }
 
-  find_inject_drag = () => { }
+  find_inject_drag = () => { 
+    return this._inject_drag
+  }
 
   find_on_drag_start = () => {
-    return this.stacks.find(_ => _.on_drag_start())
+    let splits = this.stacks.map(_ => _.find_drag_split())
+    let i = splits.findIndex(Boolean)
+
+    if (i > -1) {
+      let stack = splits[i]
+      this.a_stacks.drag = stack
+    }
+  }
+
+  inject_drag(stack: Stack) {
+    this._inject_drag = stack
   }
 
   constructor() {
@@ -91,7 +121,7 @@ export class Table {
 
     createEffect(on(() => this.m_drag()?.decay, (v, prev) => {
       if (!!prev && !v) {
-        prev.target.settle_loop()
+        prev.target.settle_loop(true)
       }
     }))
 
@@ -99,7 +129,7 @@ export class Table {
 
     setTimeout(() => {
     this.a_stacks.stacks = [
-      'zzzzzzzzzzzzzzz2h3d@5.2-2', 
+      'zzzzzzzzzzzzzzzz2h3d@5.2-2', 
       'zzzz2h3d@2.2-2', 
       'zzzz2h3d@1-2', 
       'zzzz2h3d@4-2', 
@@ -109,48 +139,59 @@ export class Table {
     let drag_decay = createMemo(() => {
       return this.m_drag()?.decay
     })
-
-    createEffect(() => {
-      if (!drag_decay()) {
-        this.cards.forEach(_ => _.mouse_down = false)
-      }
-    })
   }
 
 }
 
-const make_stack = (table: Table, stack: Stack) => {
+const make_stack = (table: Table, stack: Stack, instant_track: boolean) => {
   let [_cards, pos] = stack_pp(stack)
 
   let _settle = createSignal(undefined, { equals: false })
   let _pos = make_position(...pos_vs(pos))
   let a_cards = stack_cards(_cards)
 
+  let _base_pos = _pos.clone
+
   let res
 
   let m_cards = createMemo(mapArray(() => a_cards, 
                                     _ => make_card(table, res, _, make_position(0, 0))))
 
-  let gap = 0.2,
-  lerp_mul = 0.9
-  createEffect(() => {
+  let gap = 0.2
+
+  const f_track_pos = () => {
     m_cards().forEach((_, i, _arr) => {
       let _i = 1-(i / _arr.length),
         _i2 = (_i + 1) * (_i + 1) * (_i + 1) / 8
       _.lerp_rel(
-        _pos.x, _pos.y + i * gap, 0.1 + (_i2 * lerp_mul)
-    )
+        _pos.x, _pos.y + i * gap, 0.9 + (_i2 * 0.9)
+      )
     })
-  })
+  }
 
-  createEffect(() => {
-    read(_settle)
-    let cancel = loop_for(ticks.seconds, (dt, dt0, _i) => {
+  if (instant_track) {
+    /*
+    m_cards().forEach((_, i) => {
+      _.lerp_rel(_pos.x, _pos.y + i * gap, 0.5)
+    })
+   */
+    _pos.x
+    createEffect(() => {
+      console.log(_pos.x)
+    })
+    createEffect(f_track_pos)
+  } else {
+    f_track_pos()
+  }
+
+  /*
+  createEffect(on(_settle[0], () => {
+    let cancel = loop_for(ticks.seconds, (dt, dt0, _it) => {
       m_cards().forEach((_, i, _arr) => {
         let _i = 1-(i / _arr.length),
           _i2 = (_i + 1) * (_i + 1) * (_i + 1) / 8
         _.lerp_rel(
-          _pos.x, _pos.y + i * gap, 0.1 + (_i2 * lerp_mul)
+          _pos.x, _pos.y + i * gap, 0.2 + (_i2 * 0.2) + _it * 0.6
         )
       })
 
@@ -158,8 +199,9 @@ const make_stack = (table: Table, stack: Stack) => {
     onCleanup(() => {
       cancel()
     })
-  })
+  }))
 
+ */
 
   let vs_rect = createMemo(() => {
       return m_cards()[0]?.vs_rect() || Vec2.unit
@@ -172,12 +214,24 @@ const make_stack = (table: Table, stack: Stack) => {
 
 
   res = {
-    settle_loop() {
+    settle_loop(reset: boolean) {
+      if (reset) {
+        _pos.x = _base_pos.x
+        _pos.y = _base_pos.y
+      }
+
       owrite(_settle)
     },
-    on_drag_start() {
+    find_drag_split() {
       let cards = m_cards()
-      return cards.find(_ => _.mouse_down)
+      let i = cards.findIndex(_ => _.mouse_down)
+
+
+      if (i > -1) {
+        let d_stack = cards.slice(i, cards.length)
+        d_stack.forEach(_ => _.dragging = true)
+        return d_stack
+      }
     },
     get cards() {
       return m_cards()
@@ -194,19 +248,40 @@ const make_stack = (table: Table, stack: Stack) => {
 }
 
 const make_stacks = (table: Table) => {
-
   let _stacks = createSignal([])
+  let _drag = createSignal([])
 
-  let m_stacks = createMemo(() => {
-    let stacks = read(_stacks)
-    return stacks.map(_ => make_stack(table, _))
-  })
+  let m_stacks = createMemo(mapArray(_stacks[0], _ => make_stack(table, _)))
 
   let m_cards = createMemo(() => {
     return m_stacks().flatMap(stack => stack.cards)
   })
 
+  let m_drag_stack = createMemo(() => {
+    let d = read(_drag)
+    if (d && d.length > 0) {
+      return make_stack(table, d, true)
+    }
+  })
+
+
+  createEffect(on(m_drag_stack, (v, p) => {
+    if (!p && !!v) {
+      table.inject_drag(v)
+    }
+  }))
+
   return {
+    set drag(drag: Array<Card>) {
+      let stack = drag.map(_ => _.card_ref).join('')
+
+      let pos = drag[0].pos.vs
+      stack += `@${pos.x}-${pos.y}`
+      owrite(_drag, stack)
+    },
+    get drag() {
+      return m_drag_stack()
+    },
     set stacks(stacks: Array<Stack>) {
       owrite(_stacks, stacks)
     },
@@ -224,9 +299,10 @@ let rank_klasses = { '1': 'ace', '2': 'two', '3': 'three', '4': 'four', '5': 'fi
 let suit_klasses = { 's': 'spades', 'd': 'diamonds', 'h': 'hearts', 'c': 'clubs' }
 
 const make_card = (table: Table, stack: Stack, card: Card, _pos: Pos) => { 
-  let [rank, suit] = card;
+  let [rank, suit] = card.split('');
   let back = rank === suit;
 
+  let _dragging = createSignal(false)
 
   let m_klass = createMemo(() => (back ? back_klass : [ 
     rank_klasses[rank],
@@ -257,14 +333,20 @@ const make_card = (table: Table, stack: Stack, card: Card, _pos: Pos) => {
     return _pos.vs.mul(vs_rect())
   })
 
-
   return {
+    card_ref: card,
     vs_rect,
     set $ref($ref: HTMLElement) {
       owrite(_$ref, $ref)
     },
     lerp_abs(move: Vec2) {
       _pos.lerp_vs(move.div(vs_rect()))
+    },
+    set dragging(value: boolean) {
+      owrite(_dragging, value)
+    },
+    get dragging() {
+      return read(_dragging)
     },
     get pos() {
       return _pos
@@ -335,6 +417,7 @@ const make_drag = (table: Table, $ref: HTMLElement) => {
 
   let { on_hover,
 
+    on_up,
     on_click,
     find_inject_drag,
 
@@ -359,7 +442,7 @@ const make_drag = (table: Table, $ref: HTMLElement) => {
     mouse.update(dt, dt0)
     owrite(_update, [dt, dt0])
 
-    let { click, hover, drag } = mouse
+    let { click, hover, drag, up } = mouse
 
     if (click) {
       on_click(click)
@@ -369,12 +452,18 @@ const make_drag = (table: Table, $ref: HTMLElement) => {
       on_hover(hover)
     }
 
+    if (up) {
+      on_up()
+    }
+
 
     if (drag && !!drag.move0) {
-      let inject_drag = find_inject_drag()
+      if (!read(_drag_decay)) {
+        let inject_drag = find_inject_drag()
 
-      if (inject_drag) {
-        owrite(_drag_decay, new DragDecay(drag, inject_drag.abs_pos, inject_drag, true))
+        if (inject_drag) {
+          owrite(_drag_decay, new DragDecay(drag, inject_drag.abs_pos, inject_drag, true))
+        }
       }
     }
 
@@ -405,4 +494,8 @@ const make_drag = (table: Table, $ref: HTMLElement) => {
       return m_drag_decay()
     }
   }
+}
+
+function ease(t: number) {
+  return t<.5 ? 2*t*t : -1+(4-2*t)*t
 }
