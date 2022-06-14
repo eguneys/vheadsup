@@ -60,7 +60,8 @@ export function make_position(x, y) {
       owrite(_y, _ => rlerp(_, y, ease(t)))
     },
     lerp_vs(vs: Vec2, t: number = 0.5) { batch(() => {
-      owrite(_x, _ => rlerp(_, vs.x, ease(t))), owrite(_y, _ => rlerp(_, vs.y, ease(t)))
+      owrite(_x, _ => rlerp(_, vs.x, ease(t))) 
+      owrite(_y, _ => rlerp(_, vs.y, ease(t)))
     })
     },
     get vs() { return m_vs() },

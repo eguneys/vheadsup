@@ -175,16 +175,18 @@ const make_stack = (table: Table, stack: Stack, instant_track: boolean) => {
       _.lerp_rel(_pos.x, _pos.y + i * gap, 0.5)
     })
    */
-    _pos.x
+    console.trace(_pos.y)
     createEffect(() => {
       console.log(_pos.x)
+      onCleanup(() => {
+        console.log('here')
+      })
     })
     createEffect(f_track_pos)
   } else {
     f_track_pos()
   }
 
-  /*
   createEffect(on(_settle[0], () => {
     let cancel = loop_for(ticks.seconds, (dt, dt0, _it) => {
       m_cards().forEach((_, i, _arr) => {
@@ -201,7 +203,6 @@ const make_stack = (table: Table, stack: Stack, instant_track: boolean) => {
     })
   }))
 
- */
 
   let vs_rect = createMemo(() => {
       return m_cards()[0]?.vs_rect() || Vec2.unit
@@ -475,18 +476,18 @@ const make_drag = (table: Table, $ref: HTMLElement) => {
     }
   })
 
-  createEffect(() => {
+  createEffect(on(update, (dt, dt0) => {
     let decay = m_drag_decay()
     if (decay) {
-      createEffect(on(update, (dt, dt0) => {
-        on_drag_update(decay)
-        decay.target.lerp_abs(decay.move)
-        if (decay.drop) {
-          owrite(_drag_decay, undefined)
-        }
-      }))
+
+
+      on_drag_update(decay)
+      decay.target.lerp_abs(decay.move)
+      if (decay.drop) {
+        owrite(_drag_decay, undefined)
+      }
     }
-  })
+  }))
 
 
   return {
