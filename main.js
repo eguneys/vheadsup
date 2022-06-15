@@ -790,7 +790,7 @@ var VCardTable = (function () {
 
         children: (card, i) => createComponent(Show, {
           get when() {
-            return card.dragging;
+            return card.flags.ghosting;
           },
 
           get fallback() {
@@ -855,18 +855,6 @@ var VCardTable = (function () {
   };
 
   delegateEvents(["mousedown"]);
-
-  const rate = 1000 / 60;
-  const ticks = {
-    seconds: 60 * rate,
-    half: 30 * rate,
-    thirds: 20 * rate,
-    lengths: 15 * rate,
-    sixth: 10 * rate,
-    five: 5 * rate,
-    three: 3 * rate,
-    one: 1 * rate
-  };
 
   class Vec2 {
     static from_angle = n => new Vec2(Math.cos(n), Math.sin(n));
@@ -1027,28 +1015,6 @@ var VCardTable = (function () {
     }
 
   }
-  function loop$1(fn) {
-    let animation_frame_id;
-    let fixed_dt = 1000 / 60;
-    let timestamp0,
-        min_dt = fixed_dt,
-        max_dt = fixed_dt * 2,
-        dt0 = fixed_dt;
-
-    function step(timestamp) {
-      let dt = timestamp0 ? timestamp - timestamp0 : fixed_dt;
-      dt = Math.min(max_dt, Math.max(min_dt, dt));
-      fn(dt, dt0);
-      dt0 = dt;
-      timestamp0 = timestamp;
-      animation_frame_id = requestAnimationFrame(step);
-    }
-
-    animation_frame_id = requestAnimationFrame(step);
-    return () => {
-      cancelAnimationFrame(animation_frame_id);
-    };
-  }
 
   function loop_for(duration, fn) {
     let _elapsed = 0;
@@ -1130,20 +1096,10 @@ var VCardTable = (function () {
 
   }
 
-  const make_id_gen = () => {
-    let id = 0;
-    return () => ++id;
-  };
-
-  const id_gen = make_id_gen();
   function make_position(x, y) {
-    let _x = createSignal(x, {
-      equals: false
-    });
+    let _x = createSignal(x);
 
-    let _y = createSignal(y, {
-      equals: false
-    });
+    let _y = createSignal(y);
 
     let m_p = createMemo(() => point(read(_x), read(_y)));
     let m_vs = createMemo(() => Vec2.make(read(_x), read(_y)));
@@ -1190,6 +1146,13 @@ var VCardTable = (function () {
 
     };
   }
+
+  const make_id_gen = () => {
+    let id = 0;
+    return () => ++id;
+  };
+
+  const id_gen = make_id_gen();
   /* https://gist.github.com/gre/1650294 */
 
   function ease(t) {
@@ -1416,434 +1379,38 @@ var VCardTable = (function () {
 
   }
 
-  /*
-  setCards(['', '', ''])
+  function make_sticky_pos(make_position) {
+    let released_positions = new Map();
 
-  'zzzz2h3d@a-b'
-  '2h@100-50'
+    function acquire_pos(item, v, instant_track = false) {
+      let _ = released_positions.get(item);
 
-  */
+      if (!instant_track && _ && _.length > 0) {
+        _.sort((a, b) => b.vs.distance(v) - a.vs.distance(v));
 
-  function stack_pp(ref) {
-    return ref.split('@');
-  }
-
-  function pos_vs(pos) {
-    return pos.split('-').map(_ => parseFloat(_));
-  }
-
-  function stack_cards(cards) {
-    let res = [];
-
-    for (let i = 0; i < cards.length; i += 2) {
-      let rank = cards[i],
-          suit = cards[i + 1];
-      res.push(rank + suit);
+        return _.pop();
+      } else {
+        return make_position(item, v);
+      }
     }
 
-    return res;
-  }
-
-  class Table {
-    get drag_stack() {
-      return this.a_stacks.drag;
-    }
-
-    get drag_cards() {
-      let {
-        drag_stack
-      } = this;
-
-      if (drag_stack) {
-        return drag_stack.cards;
-      }
-
-      return [];
-    }
-
-    get stacks() {
-      return this.a_stacks.stacks;
-    }
-
-    get cards() {
-      return this.a_stacks.cards;
-    }
-
-    set $ref($ref) {
-      owrite(this._$ref, $ref);
-    }
-
-    onScroll() {
-      owrite(this._$clear_bounds);
-    }
-
-    on_up = () => {
-      this.cards.forEach(_ => _.mouse_down = false);
-      this._inject_drag = undefined;
-    };
-    on_click = () => {
-      console.log('on click');
-    };
-    on_hover = () => {};
-    on_drag_update = () => {};
-    find_inject_drag = () => {
-      return this._inject_drag;
-    };
-    find_on_drag_start = () => {
-      if (this.drag_stack) {
-        return;
-      }
-
-      let splits = this.stacks.map(_ => _.find_drag_split());
-      let i = splits.findIndex(Boolean);
-
-      if (i > -1) {
-        let stack = splits[i];
-        this.a_stacks.drag = stack;
-        owrite(this._drag_split, [i, stack.length]);
-      }
-    };
-
-    inject_drag(stack) {
-      this._inject_drag = stack;
-    }
-
-    constructor() {
-      this._$ref = createSignal(undefined, {
-        equals: false
-      });
-      let m_ref = createMemo(() => read(this._$ref));
-      this._$clear_bounds = createSignal(undefined, {
-        equals: false
-      });
-      this.m_rect = createMemo(() => {
-        read(this._$clear_bounds);
-        return m_ref()?.getBoundingClientRect();
-      });
-      this.m_drag = createMemo(() => {
-        let $ref = m_ref();
-
-        if ($ref) {
-          return make_drag(this, $ref);
-        }
-      });
-      createEffect(on(() => this.m_drag()?.decay, (v, prev) => {
-        if (!!prev && !v) {
-          prev.target.settle_loop(true);
-        }
-      }));
-      this.a_stacks = make_stacks(this);
-      setTimeout(() => {
-        this.a_stacks.stacks = ['zzzzzzzzzzzzzzzz2h3d@5.2-2', 'zzzz2h3d@2.2-2', 'zzzz2h3d@1-2', 'zzzz2h3d@4-2'];
-      }, 1000);
-      createMemo(() => {
-        return this.m_drag()?.decay;
-      });
-      this._drag_split = createSignal();
-      createEffect(() => {
-        console.log(read(this._drag_split));
-      });
-      createEffect(on(() => this.a_stacks.drag, (v, p) => {
-        if (!v && !!p) {
-          owrite(this._drag_split, undefined);
-        }
-      }));
-      createEffect(on(this._drag_split[0], (v, p) => {
-        if (!!v && !p) {
-          let [s_index, s_length] = v;
-          let stack = this.stacks[s_index].slice_cards_back(s_length);
-          stack.forEach(_ => _.dragging = true);
-        }
-
-        if (!v && !!p) {
-          let [s_index, s_length] = p;
-          let stack = this.stacks[s_index].slice_cards_back(s_length);
-          console.log(stack);
-          stack.forEach(_ => _.dragging = false);
-        }
-      }));
-    }
-
-  }
-
-  const make_stack = (table, stack, instant_track) => {
-    let [_cards, pos] = stack_pp(stack);
-
-    let _settle = createSignal(!instant_track);
-
-    let _pos = make_position(...pos_vs(pos));
-
-    let a_cards = stack_cards(_cards);
-    let _base_pos = _pos.clone;
-    let res;
-    let m_cards = createMemo(mapArray(() => a_cards, _ => make_card(table, res, _, make_position(0, 0))));
-    let gap = 0.2;
-
-    const f_track_pos = () => {
-      if (read(_settle)) {
-        return;
-      }
-
-      m_cards().forEach((_, i, _arr) => {
-        let _i = 1 - i / _arr.length,
-            _i2 = (_i + 1) * (_i + 1) * (_i + 1) / 8;
-
-        _.lerp_rel(_pos.x, _pos.y + i * gap, 0.1 + _i2 * 0.9);
-      });
-    };
-
-    if (instant_track) {
-      createEffect(f_track_pos);
-      m_cards().forEach((_, i) => {
-        _.lerp_rel(_pos.x, _pos.y + i * gap, 1);
-      });
-    } else {
-      f_track_pos();
-    }
-
-    createEffect(on(_settle[0], v => {
-      if (!v) {
-        return;
-      }
-
-      let cancel = loop_for(ticks.half, (dt, dt0, _it) => {
-        m_cards().forEach((_, i, _arr) => {
-          let _i = 1 - i / _arr.length,
-              _i2 = (_i + 1) * (_i + 1) * (_i + 1) / 8;
-
-          _.lerp_rel(_pos.x, _pos.y + i * gap, _i2 * 0.2 + _it * 0.8);
-        });
-
-        if (_it === 1) {
-          owrite(_settle, false);
-        }
-      });
-      onCleanup(() => {
-        cancel();
-      });
-    }));
-    let vs_rect = createMemo(() => {
-      return m_cards()[0]?.vs_rect() || Vec2.unit;
-    });
-    let m_abs_pos = createMemo(() => {
-      return _pos.vs.mul(vs_rect());
-    });
-    let drop_after_settle = false;
-    let m_drop_after_settle = createMemo(() => {
-      if (!read(_settle)) {
-        if (drop_after_settle) {
-          return true;
-        }
-      }
-
-      return false;
-    });
-    res = {
-      slice_cards_back(i) {
-        let cards = m_cards();
-        return cards.slice(-i);
-      },
-
-      m_drop_after_settle,
-
-      settle_loop(reset) {
-        batch(() => {
-          if (reset) {
-            _pos.x = _base_pos.x;
-            _pos.y = _base_pos.y;
-            drop_after_settle = true;
-          }
-
-          owrite(_settle, true);
-        });
-      },
-
-      find_drag_split() {
-        let cards = m_cards();
-        let i = cards.findIndex(_ => _.mouse_down);
-
-        if (i > -1) {
-          let d_stack = cards.slice(i, cards.length);
-          return d_stack;
-        }
-      },
-
-      get cards() {
-        return m_cards();
-      },
-
-      lerp_abs(vs) {
-        _pos.lerp_vs(vs.div(vs_rect()));
-      },
-
-      get abs_pos() {
-        return m_abs_pos();
-      }
-
-    };
-    return res;
-  };
-
-  const make_stacks = table => {
-    let _stacks = createSignal([]);
-
-    let _drag = createSignal([]);
-
-    let m_stacks = createMemo(mapArray(_stacks[0], _ => make_stack(table, _)));
-    let m_cards = createMemo(() => {
-      return m_stacks().flatMap(stack => stack.cards);
-    });
-    let m_drag_stack = createMemo(() => {
-      let d = read(_drag);
-
-      if (d && d.length > 0) {
-        return untrack(() => make_stack(table, d, true));
-      }
-    });
-    createEffect(on(m_drag_stack, (v, p) => {
-      if (!p && !!v) {
-        table.inject_drag(v);
-      }
-
-      if (v) {
-        createEffect(() => {
-          if (v.m_drop_after_settle()) {
-            owrite(_drag, undefined);
-          }
-        });
-      }
-    }));
     return {
-      set drag(drag) {
-        let stack = drag.map(_ => _.card_ref).join('');
-        let pos = drag[0].pos.vs;
-        stack += `@${pos.x}-${pos.y}`;
-        owrite(_drag, stack);
-      },
+      acquire_pos,
 
-      get drag() {
-        return m_drag_stack();
-      },
+      release_pos(item, pos) {
+        let res = released_positions.get(item);
 
-      set stacks(stacks) {
-        owrite(_stacks, stacks);
-      },
+        if (!res) {
+          res = [];
+          released_positions.set(item, res);
+        }
 
-      get stacks() {
-        return m_stacks();
-      },
-
-      get cards() {
-        return m_cards();
+        res.push(pos);
       }
 
     };
-  };
-
-  let back_klass = ['back'];
-  let rank_klasses = {
-    '1': 'ace',
-    '2': 'two',
-    '3': 'three',
-    '4': 'four',
-    '5': 'five',
-    '6': 'six',
-    '7': 'seven',
-    '8': 'eight',
-    '9': 'nine',
-    'T': 'ten',
-    'J': 'jack',
-    'Q': 'queen',
-    'K': 'king'
-  };
-  let suit_klasses = {
-    's': 'spades',
-    'd': 'diamonds',
-    'h': 'hearts',
-    'c': 'clubs'
-  };
-
-  const make_card = (table, stack, card, _pos) => {
-    let [rank, suit] = card.split('');
-    let back = rank === suit;
-
-    let _dragging = createSignal(false);
-
-    let m_klass = createMemo(() => (back ? back_klass : [rank_klasses[rank], suit_klasses[suit]]).join(' '));
-    let m_style = createMemo(() => ({
-      transform: `translate(calc(${_pos.x} * 100%), calc(${_pos.y} * 100%))`
-    }));
-
-    let _$ref = createSignal();
-
-    let m_rect = createMemo(() => {
-      read(table._$clear_bounds);
-      return read(_$ref)?.getBoundingClientRect();
-    });
-    let vs_rect = createMemo(() => {
-      let r = m_rect();
-
-      if (r) {
-        return Vec2.make(r.width, r.height);
-      }
-
-      return Vec2.unit;
-    });
-    let m_abs_pos = createMemo(() => {
-      return _pos.vs.mul(vs_rect());
-    });
-    return {
-      get suit() {
-        return suit;
-      },
-
-      get rank() {
-        return rank;
-      },
-
-      card_ref: card,
-      vs_rect,
-
-      set $ref($ref) {
-        owrite(_$ref, $ref);
-      },
-
-      lerp_abs(move) {
-        _pos.lerp_vs(move.div(vs_rect()));
-      },
-
-      set dragging(value) {
-        owrite(_dragging, value);
-      },
-
-      get dragging() {
-        return read(_dragging);
-      },
-
-      get pos() {
-        return _pos;
-      },
-
-      get abs_pos() {
-        return m_abs_pos();
-      },
-
-      lerp_rel(x, y, i) {
-        _pos.lerp(x, y, i);
-      },
-
-      get style() {
-        return m_style();
-      },
-
-      get klass() {
-        return m_klass();
-      }
-
-    };
-  };
-
-  const make_drag = (table, $ref) => {
+  }
+  function make_drag(table, $ref) {
     let {
       on_hover,
       on_up,
@@ -1863,7 +1430,7 @@ var VCardTable = (function () {
 
     let update = createMemo(() => read(_update));
     let mouse = new Mouse($ref).init();
-    loop$1((dt, dt0) => {
+    loop((dt, dt0) => {
       mouse.update(dt, dt0);
       owrite(_update, [dt, dt0]);
       let {
@@ -1899,7 +1466,7 @@ var VCardTable = (function () {
         let res = find_on_drag_start(drag);
 
         if (res) {
-          owrite(_drag_decay, new DragDecay(drag, res.abs_pos, res));
+          owrite(_drag_decay, new DragDecay(drag, res.vs, res));
         }
       }
     });
@@ -1908,7 +1475,7 @@ var VCardTable = (function () {
 
       if (decay) {
         on_drag_update(decay);
-        decay.target.lerp_abs(decay.move);
+        decay.target.lerp_vs(decay.move);
 
         if (decay.drop) {
           owrite(_drag_decay, undefined);
@@ -1921,7 +1488,366 @@ var VCardTable = (function () {
       }
 
     };
+  }
+
+  const rate = 1000 / 60;
+  const ticks = {
+    seconds: 60 * rate,
+    half: 30 * rate,
+    thirds: 20 * rate,
+    lengths: 15 * rate,
+    sixth: 10 * rate,
+    five: 5 * rate,
+    three: 3 * rate,
+    one: 1 * rate
   };
+
+  const suits = ['h', 'd', 'c', 's'];
+  const ranks = ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'T', 'J', 'Q', 'K'];
+  const cards = ranks.flatMap(rank => suits.map(suit => rank + suit));
+  const cards4 = [...Array(4).keys()].flatMap(_ => cards.slice(0));
+  const backs4 = cards4.map(_ => 'zz');
+
+  function make_hooks(table) {
+    return {
+      on_hover() {},
+
+      on_up() {
+        table.cards.forEach(_ => _.mouse_down = false);
+      },
+
+      on_click() {},
+
+      find_inject_drag() {},
+
+      on_drag_update() {},
+
+      find_on_drag_start() {
+        return table.a_cards.find_on_drag_start();
+      }
+
+    };
+  }
+
+  class Table {
+    get cards() {
+      return this.a_cards.cards;
+    }
+
+    onScroll() {
+      owrite(this._$clear_bounds);
+    }
+
+    set $ref($ref) {
+      owrite(this._$ref, $ref);
+    }
+
+    constructor() {
+      this._$ref = createSignal(undefined, {
+        equals: false
+      });
+      let m_ref = createMemo(() => read(this._$ref));
+      this._$clear_bounds = createSignal(undefined, {
+        equals: false
+      });
+      this.m_rect = createMemo(() => {
+        read(this._$clear_bounds);
+        return m_ref()?.getBoundingClientRect();
+      });
+      this.m_drag = createMemo(() => {
+        let $ref = m_ref();
+
+        if ($ref) {
+          return make_drag(make_hooks(this), $ref);
+        }
+      });
+      this.a_cards = make_cards(this);
+      createEffect(on(() => this.m_drag()?.decay, (v, prev) => {
+        if (!!prev && !v) {
+          this.a_cards.drop();
+        }
+      }));
+      setTimeout(() => {
+        this.a_cards.stacks = ['zzzz2h3d@2.2-2', 'zzzz2h3d@1-2', '2c@3-1'];
+      }, 3000);
+      setTimeout(() => {
+        this.a_cards.stacks = ['zzzz2h3d@2.2-2', 'zzzz2h3d@1-2', '2c@4-2'];
+      }, 1000);
+    }
+
+  }
+
+  function make_cards(table) {
+    let _drags = createSignal([]);
+
+    let _stacks = createSignal([]);
+
+    let sticky_pos = make_sticky_pos((c, v) => make_position(v.x, v.y));
+    cards4.forEach(_ => sticky_pos.release_pos(_, make_position(0, 0)));
+    backs4.forEach(_ => sticky_pos.release_pos(_, make_position(0, 0)));
+    let gap = 0.2;
+    let m_stack_cards = createMemo(() => {
+      let stacks = read(_stacks);
+      return stacks.flatMap((stack, o_stack_i, _arr) => {
+        let o_stack_n = _arr.length;
+        let [o_cards, o_pos] = stack.split('@');
+
+        let _pos = Vec2.make(...o_pos.split('-').map(_ => parseFloat(_)));
+
+        let res = [];
+
+        for (let i = 0; i < o_cards.length; i += 2) {
+          let o_i = i / 2;
+          let v = Vec2.make(_pos.x, _pos.y + o_i * gap);
+          res.push(['rr', o_stack_i, o_stack_n, o_i, o_cards.slice(i, i + 2), `${v.x}-${v.y}`].join('@'));
+        }
+
+        return res;
+      });
+    });
+
+    let _cards = createMemo(() => {
+      return [...m_stack_cards(), ...read(_drags)];
+    });
+
+    let m_cards = createMemo(mapArray(_cards, _ => {
+      let [o_stack_type, o_stack_i, o_stack_n, o_i, o_card, o_pos] = _.split('@');
+
+      let [x, y] = o_pos.split('-').map(_ => parseFloat(_));
+
+      let _p = sticky_pos.acquire_pos(o_card, Vec2.make(x, y));
+
+      onCleanup(() => {
+        sticky_pos.release_pos(o_card, _p);
+      });
+      return make_card(table, _, _p);
+    }));
+
+    let _drag_target = make_position(0, 0);
+
+    createEffect(on(() => _drag_target.vs, vs => {
+      let drags = m_cards().filter(_ => _.o_stack_type === 'drag');
+      drags.forEach((_, o_i, _arr) => {
+        let _i = 1 - o_i / _arr.length,
+            _i2 = (_i + 1) * (_i + 1) * (_i + 1) / 8;
+
+        let v = Vec2.make(0, o_i * gap);
+
+        _.lerp_abs_rel(vs, v, 0.1 + _i2 * 0.9);
+      });
+    }));
+    return {
+      drop() {
+        let drags = m_cards().filter(_ => _.o_stack_type === 'drag');
+        drags.forEach(_ => {
+          _.settle_for(_.v_pos, () => {
+            m_cards().forEach(_ => _.flags.ghosting = false);
+            owrite(_drags, []);
+          });
+        });
+      },
+
+      set stacks(stacks) {
+        owrite(_stacks, stacks);
+      },
+
+      get cards() {
+        return m_cards();
+      },
+
+      find_on_drag_start() {
+        if (read(_drags).length > 0) {
+          return;
+        }
+
+        let cards = m_cards();
+        let card = cards.find(_ => _.mouse_down);
+
+        if (card) {
+          let stack_cards = cards.filter(_ => _.stack_i === card.stack_i);
+          let drags = stack_cards.filter(_ => _.o_i >= card.o_i);
+          drags.forEach(_ => _.flags.ghosting = true);
+          let {
+            abs_pos
+          } = card;
+
+          if (abs_pos) {
+            _drag_target.x = abs_pos.x;
+            _drag_target.y = abs_pos.y;
+          }
+
+          owrite(_drags, drags.map((_, o_i, _arr) => ['drag', o_i, _arr.length, o_i, _.card_sr, _.o_pos].join('@')));
+          return _drag_target;
+        }
+      }
+
+    };
+  }
+
+  let back_klass = ['back'];
+  let rank_klasses = {
+    '1': 'ace',
+    '2': 'two',
+    '3': 'three',
+    '4': 'four',
+    '5': 'five',
+    '6': 'six',
+    '7': 'seven',
+    '8': 'eight',
+    '9': 'nine',
+    'T': 'ten',
+    'J': 'jack',
+    'Q': 'queen',
+    'K': 'king'
+  };
+  let suit_klasses = {
+    's': 'spades',
+    'd': 'diamonds',
+    'h': 'hearts',
+    'c': 'clubs'
+  };
+
+  function make_card_flags() {
+    let _ghosting = createSignal(false);
+
+    return {
+      get ghosting() {
+        return read(_ghosting);
+      },
+
+      set ghosting(v) {
+        owrite(_ghosting, v);
+      }
+
+    };
+  }
+
+  function make_card(table, o_card, _pos) {
+    let [o_stack_type, o_stack_i, o_stack_n, o_i, o_sr, o_pos] = o_card.split('@');
+    let [o_rank, o_suit] = o_sr.split('');
+    let [o_x, o_y] = o_pos.split('-').map(_ => parseFloat(_));
+    let v_pos = Vec2.make(o_x, o_y);
+    let o_back = o_suit === o_rank;
+
+    let _lerp_i = 1 - o_stack_i / o_stack_n;
+
+    function settle_for(v_pos, on_settled = () => {}) {
+      loop_for(ticks.thirds, (dt, dt0, _it) => {
+        _pos.lerp(v_pos.x, v_pos.y, _lerp_i * 0.2 + _it * 0.8);
+
+        if (_it === 1) {
+          on_settled(_it);
+        }
+      });
+    }
+
+    {
+      _pos.x = v_pos.x;
+      _pos.y = v_pos.y;
+    }
+
+    let _$ref = createSignal();
+
+    let m_rect = createMemo(() => {
+      read(table._$clear_bounds);
+      return read(_$ref)?.getBoundingClientRect();
+    });
+    let vs_rect = createMemo(() => {
+      let r = m_rect();
+
+      if (r) {
+        return Vec2.make(r.width, r.height);
+      }
+    });
+    let m_abs_pos = createMemo(() => {
+      let rect = vs_rect();
+
+      if (rect) {
+        return _pos.vs.mul(rect);
+      }
+    });
+    let m_klass = createMemo(() => (o_back ? back_klass : [rank_klasses[o_rank], suit_klasses[o_suit]]).join(' '));
+    let m_style = createMemo(() => ({
+      transform: `translate(calc(${_pos.x} * 100%), calc(${_pos.y} * 100%))`
+    }));
+    return {
+      settle_for,
+      flags: make_card_flags(),
+
+      get o_stack_type() {
+        return o_stack_type;
+      },
+
+      get stack_i() {
+        return o_stack_i;
+      },
+
+      get o_i() {
+        return o_i;
+      },
+
+      get suit() {
+        return o_suit;
+      },
+
+      get rank() {
+        return o_rank;
+      },
+
+      card_sr: o_sr,
+      card_ref: o_card,
+      vs_rect,
+
+      set $ref($ref) {
+        owrite(_$ref, $ref);
+      },
+
+      lerp_abs(move) {
+        let rect = vs_rect();
+
+        if (rect) {
+          _pos.lerp_vs(move.div(rect));
+        }
+      },
+
+      lerp_abs_rel(move, rel, i) {
+        let rect = vs_rect();
+
+        if (rect) {
+          _pos.lerp_vs(move.div(rect).add(rel), i);
+        }
+      },
+
+      v_pos,
+
+      get o_pos() {
+        let x = _pos.x,
+            y = _pos.y;
+        return `${x}-${y}`;
+      },
+
+      get pos() {
+        return _pos;
+      },
+
+      get abs_pos() {
+        return m_abs_pos();
+      },
+
+      lerp_rel(x, y, i) {
+        _pos.lerp(x, y, i);
+      },
+
+      get style() {
+        return m_style();
+      },
+
+      get klass() {
+        return m_klass();
+      }
+
+    };
+  }
 
   function VCardTable(element, options = {}) {
     let table = new Table();
