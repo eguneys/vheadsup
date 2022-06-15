@@ -66,6 +66,41 @@ export class Table {
     owrite(this._$ref, $ref)
   }
 
+  apply_drop(rule: DropRule) {
+    let [o_stack_n, o_i, drop_stack_n] = rule.split('@')
+
+    let o_stack_i = this.a_cards.stacks.findIndex(_ => _.split('@')[0] === o_stack_n)
+
+    let o_stack = this.a_cards.stacks[o_stack_i]
+    let [o_name, o_cards, o_pos] = o_stack.split('@')
+    let new_cards = o_cards.slice(0, -o_i * 2)
+    let cut_cards = o_cards.slice(-o_i * 2)
+    let new_stack = [o_name, new_cards, o_pos].join('@')
+
+    let new_stacks = this.a_cards.stacks.slice(0)
+
+    new_stacks[o_stack_i] = new_stack
+
+
+    let drop_stack_i = this.a_cards.stacks.findIndex(_ => _.split('@')[0] === drop_stack_n)
+
+    let d_stack = this.a_cards.stacks[drop_stack_i]
+
+    let [d_o_name, d_o_cards, d_o_pos] = d_stack.split('@')
+
+    let d_new_cards = d_o_cards + cut_cards
+    let d_new_stack = [d_o_name, d_new_cards, d_o_pos].join('@')
+
+
+
+    new_stacks[drop_stack_i] = d_new_stack
+
+
+
+    this.a_cards.stacks = new_stacks
+
+  }
+
 
   constructor() {
 
@@ -219,6 +254,25 @@ function make_cards(table: Table) {
     })
   })
 
+  let m_stack_more = createMemo(() => {
+    let stacks = read(_stacks)
+
+    return stacks.map((stack, o_stack_i) => {
+      let [o_name, o_cards, o_pos] = stack.split('@')
+      let _pos = Vec2.make(...o_pos.split('-').map(_ => parseFloat(_)))
+
+      let o_stack_n = o_cards.length / 2
+
+      return {
+        o_stack_n,
+        get pos() {
+          return _pos
+        }
+      }
+    })
+  })
+
+
   let _cards = createMemo(() => {
     return [
       ...m_stack_cards(),
@@ -226,16 +280,24 @@ function make_cards(table: Table) {
     ]
   })
 
+  createEffect(() => {
+    console.log(_cards())
+  })
+
   let m_cards = createMemo(mapArray(_cards, _ => {
     let [o_stack_type, o_stack_i, o_stack_n, o_i, o_card, o_pos] = _.split('@')
     let [x, y] = o_pos.split('-').map(_ => parseFloat(_))
     let _p = sticky_pos.acquire_pos(o_card, Vec2.make(x, y))
 
+    let res = make_card(table, _, _p)
     onCleanup(() => {
-      sticky_pos.release_pos(o_card, _p)
+      console.log(o_card, res.o_stack_type)
+      if (!res.flags.ghosting) {
+        sticky_pos.release_pos(o_card, _p)
+      }
     })
 
-    return make_card(table, _, _p)
+    return res
   }))
 
   let _drag_target = make_position(0, 0)
@@ -266,7 +328,7 @@ function make_cards(table: Table) {
     return drags[0]
   })
 
-  let m_hovered_drop_target = createMemo(() => {
+  createEffect(() => {
     let drag_card = m_drag_card()
     let top_cards = m_top_cards()
 
@@ -283,24 +345,42 @@ function make_cards(table: Table) {
     }
   })
 
+
+  function drop_target_for_pos_n(stack_i: number, i: number) {
+    let { pos, o_stack_n }  = m_stack_more()[stack_i]
+
+    return Vec2.make(pos.x, pos.y + (i + o_stack_n) * gap)
+  }
+
   return {
     drop() {
     let drags = m_drag_cards()
     let top_cards = m_top_cards()
 
-    let drop_target = top_cards.find(_ => _.flags.hovering_drop)
+    const drop_target = top_cards.find(_ => _.flags.hovering_drop)
 
-    if (drop_target) {
-      console.log(drop_target.drop_rule)
-    }
 
-    drags.forEach(_ => {
-      _.settle_for(_.v_pos, () => {
+    drags.forEach((_, i, _arr) => {
+      let settle_vs = _.v_pos
+      if (drop_target) {
+        if (drop_target.drop_rule) {
+          settle_vs = drop_target_for_pos_n(drop_target.stack_i, i)
+        }
+      }
+      _.settle_for(settle_vs, () => {
+        if (i !== _arr.length - 1) { return }
+
+        if (drop_target.drop_rule) {
+          table.apply_drop(drop_target.drop_rule)
+        }
         m_cards().forEach(_ => _.flags.ghosting = false)
         owrite(_drags, [])
       })
     })
 
+    },
+    get stacks() {
+      return read(_stacks)
     },
     set stacks(stacks: Array<OStack>) {
       owrite(_stacks, stacks)
