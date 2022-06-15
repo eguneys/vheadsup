@@ -34,11 +34,12 @@ const App = table => props => {
            fallback= {
            <Card ref={_ => setTimeout(() => card.$ref = _ ) } onMouseDown={_ => card.mouse_down = true} card={card}/>
            }>
+
+           <Card card={card}/>
            </Show>
          }</For>
          <For each={table.drag_cards}>{ card =>
-         <Card ref={_ => setTimeout(() => card.$ref = _ ) } 
-         onMouseDown={_ => card.mouse_down = true} card={card}/>
+         <Card card={card}/>
            }</For>
        </cards>
       </vcardtable>

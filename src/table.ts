@@ -70,6 +70,7 @@ export class Table {
     })
 
     this.a_cards = make_cards(this)
+    this.a_rules = make_rules(this)
 
     createEffect(on(() => this.m_drag()?.decay, (v, prev) => {
       if (!!prev && !v) {
@@ -77,19 +78,21 @@ export class Table {
       }
     }))
 
-    setTimeout(() => {
-      this.a_cards.stacks = [
-        'zzzz2h3d@2.2-2', 
-        'zzzz2h3d@1-2', 
-        '2c@3-1', 
-      ]
-    }, 3000)
 
     setTimeout(() => {
+
+
+      this.a_rules.drags = [
+        'p1@2',
+        'p2@2',
+        'p3@1'
+      ]
+
     this.a_cards.stacks = [
-      'zzzz2h3d@2.2-2', 
-      'zzzz2h3d@1-2', 
-      '2c@4-2', 
+      'p1@zzzz2h3d@0.2-2', 
+      'p2@zzzz2h3d@1.4-2', 
+      'p3@2c@2.6-2', 
+      'p4@2c3h@4.6-2', 
     ]
     }, 1000)
 
@@ -99,10 +102,36 @@ export class Table {
 
   }
 }
+
+
+function make_rules(table: Table) {
+
+  let _drags = createSignal([])
+  let m_drags = createMemo(() => {
+    let drags = read(_drags)
+    return new Map(drags.map(_ => {
+      let [name, nb] = _.split('@')
+      return ['__' + name, parseInt(nb)]
+    }))
+  })
+
+  return {
+    set drags(drags: Array<AllowedDrag>) {
+      owrite(_drags, drags)
+    },
+    can_drag(o_stack_type: string, o_stack_i: number, o_stack_n: number, o_i: number) {
+      let stack = m_drags().get(o_stack_type)
+
+      if (stack) {
+        return stack >= o_stack_n - o_i
+      }
+    }
+  }
+
+}
       
       
 function make_cards(table: Table) {
-
 
   let _drags = createSignal([])
   let _stacks = createSignal([])
@@ -119,14 +148,14 @@ function make_cards(table: Table) {
 
     return stacks.flatMap((stack, o_stack_i, _arr) => {
       let o_stack_n = _arr.length
-      let [o_cards, o_pos] = stack.split('@')
+      let [o_name, o_cards, o_pos] = stack.split('@')
       let _pos = Vec2.make(...o_pos.split('-').map(_ => parseFloat(_)))
 
       let res = []
       for (let i = 0; i < o_cards.length; i+=2) {
         let o_i = i/ 2
         let v = Vec2.make(_pos.x, _pos.y + (o_i) * gap)
-        res.push(['rr', o_stack_i, o_stack_n, o_i, o_cards.slice(i, i + 2), `${v.x}-${v.y}`].join('@'))
+        res.push(['__' + o_name, o_stack_i, o_stack_n, o_i, o_cards.slice(i, i + 2), `${v.x}-${v.y}`].join('@'))
       }
       return res
     })
@@ -191,7 +220,7 @@ function make_cards(table: Table) {
 
       let card = cards.find(_ => _.mouse_down)
 
-      if (card) {
+      if (card && card.can_drag) {
         let stack_cards = cards.filter(_ => _.stack_i === card.stack_i)
         let drags = stack_cards.filter(_ => _.o_i >= card.o_i)
 
@@ -242,6 +271,12 @@ function make_card(table: Table, o_card: OCard, _pos: Pos) {
 
   let _lerp_i = 1 - (o_stack_i / o_stack_n)
 
+  let flags = make_card_flags()
+
+  let m_can_drag = createMemo(() => {
+    return table.a_rules.can_drag(o_stack_type, o_stack_i, o_stack_n, o_i)
+  })
+
   function settle_for(v_pos: Vec2, on_settled: () => void = () => {}) {
     loop_for(ticks.thirds, (dt, dt0, _it) => {
       _pos.lerp(v_pos.x, v_pos.y, _lerp_i * 0.2 + _it * 0.8)
@@ -283,6 +318,8 @@ function make_card(table: Table, o_card: OCard, _pos: Pos) {
 
 
   let m_klass = createMemo(() => (o_back ? back_klass : [ 
+    flags.ghosting ? 'ghosting' : '',
+    m_can_drag() ? 'can-drag' : '',
     rank_klasses[o_rank],
     suit_klasses[o_suit]
   ]).join(' '));
@@ -294,8 +331,11 @@ function make_card(table: Table, o_card: OCard, _pos: Pos) {
 
 
   return {
+    get can_drag() {
+      return m_can_drag()
+    },
     settle_for,
-    flags: make_card_flags(),
+    flags,
     get o_stack_type() {
       return o_stack_type
     },

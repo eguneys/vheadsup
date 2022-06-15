@@ -1,4 +1,8 @@
+* {
+  box-sizing: border-box;
+}
 vcardtable {
+  font-size: calc(20px + 2 * ((100vw - 320px) / 880));
   user-select: none;
   position: relative;
   width: 100%;
@@ -17,7 +21,16 @@ cards card {
   position: absolute;
   width: calc((100% / 16) * 3 * 0.5);
   height: calc((100% / 9) * 4 * 0.5);
-  box-shadow: 1px 1px 2px black;
+  box-shadow: 1px 0px 2px black;
+}
+
+cards card.ghosting {
+  border: 2px dashed white;
+  opacity: 0.4;
+}
+
+cards card.can-drag:hover {
+  box-shadow: 0px 0px 1px 1px white;
 }
 
 cards card .top {
@@ -30,6 +43,6 @@ cards card .top {
 
 cards card .front {
   font-weight: bold;
-  font-size: 4em;
+  font-size: 2em;
   text-align: center;
 }
