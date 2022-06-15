@@ -1,4 +1,5 @@
 
+- [ ] When drag is released, (dropped), it takes thirds of a second to settle in, meanwhile no dragging is allowed, a visual cue to hint this, optional.
 
 - [ ] While dragging a pile of cards, an indication, (ghost view), of cards' original place.
 - [ ] While dragging a pile of cards, an indication, of where cards can be placed on.

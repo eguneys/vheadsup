@@ -6,6 +6,12 @@ import { make_drag, make_sticky_pos } from './make_sticky'
 import { loop_for } from './play'
 import { ticks } from './shared'
 
+const suits = ['h', 'd', 'c', 's']
+const ranks = ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'T', 'J', 'Q', 'K']
+const cards = ranks.flatMap(rank => suits.map(suit => rank + suit))
+const backs = cards.map(_ => 'zz')
+const cards4 = [...Array(4).keys()].flatMap(_ => cards.slice(0))
+const backs4 = cards4.map(_ => 'zz')
 
 function make_hooks(table: Table) {
 
@@ -71,27 +77,19 @@ export class Table {
       }
     }))
 
-    /*
     setTimeout(() => {
       this.a_cards.stacks = [
-        'zzzzzzzz4haabbccdd2h3d@5.2-2', 
         'zzzz2h3d@2.2-2', 
         'zzzz2h3d@1-2', 
-        '2h3dzzzz@3-1', 
-        '2h3dzzzz@4-1', 
-        '2h3dzzzz@5-1', 
+        '2c@3-1', 
       ]
     }, 3000)
 
-   */
-
-
     setTimeout(() => {
     this.a_cards.stacks = [
-      'zzzzzzzzaabbccdd2h3d@5.2-2', 
       'zzzz2h3d@2.2-2', 
       'zzzz2h3d@1-2', 
-      'zzzz2h3d4h@4-2', 
+      '2c@4-2', 
     ]
     }, 1000)
 
@@ -110,6 +108,10 @@ function make_cards(table: Table) {
   let _stacks = createSignal([])
 
   let sticky_pos = make_sticky_pos((c: OCard, v: Vec2) => make_position(v.x, v.y))
+
+  cards4.forEach(_ => sticky_pos.release_pos(_, make_position(0, 0)))
+  backs4.forEach(_ => sticky_pos.release_pos(_, make_position(0, 0)))
+
 
   let gap = 0.2
   let m_stack_cards = createMemo(() => {
@@ -149,19 +151,18 @@ function make_cards(table: Table) {
     return make_card(table, _, _p)
   }))
 
-
   let _drag_target = make_position(0, 0)
 
-  createEffect(() => {
+  createEffect(on(() => _drag_target.vs, (vs) => {
     let drags = m_cards().filter(_ => _.o_stack_type === 'drag')
     drags.forEach((_, o_i, _arr) => {
       let _i = 1-(o_i / _arr.length),
         _i2 = (_i + 1) * (_i + 1) * (_i + 1) / 8
 
       let v = Vec2.make(0, (o_i) * gap)
-      _.lerp_abs_rel(_drag_target.vs, v, 0.1 + (_i2 * 0.9))
+      _.lerp_abs_rel(vs, v, 0.1 + (_i2 * 0.9))
     })
-  })
+  }))
 
   return {
     drop() {
@@ -170,12 +171,8 @@ function make_cards(table: Table) {
 
     drags.forEach(_ => {
       _.settle_for(_.v_pos, () => {
-
-
         m_cards().forEach(_ => _.flags.ghosting = false)
         owrite(_drags, [])
-
-
       })
     })
 
@@ -200,16 +197,15 @@ function make_cards(table: Table) {
 
         drags.forEach(_ => _.flags.ghosting = true)
 
-        owrite(_drags, drags.map((_, o_i, _arr) => 
-                                 ['drag', o_i, _arr.length, o_i, _.card_sr, _.o_pos].join('@')))
-
-        let { abs_pos } = drags[0]
+        let { abs_pos } = card
 
         if (abs_pos) {
           _drag_target.x = abs_pos.x
           _drag_target.y = abs_pos.y
         }
 
+        owrite(_drags, drags.map((_, o_i, _arr) => 
+                                 ['drag', o_i, _arr.length, o_i, _.card_sr, _.o_pos].join('@')))
         return _drag_target
       }
     }
@@ -255,13 +251,12 @@ function make_card(table: Table, o_card: OCard, _pos: Pos) {
     })
   }
 
-  if (!o_drag) {
+  if (false && !o_drag) {
     settle_for(v_pos)
   } else {
     _pos.x = v_pos.x
     _pos.y = v_pos.y
   }
-
   let _$ref = createSignal()
 
   let m_rect = createMemo(() => {
@@ -296,7 +291,6 @@ function make_card(table: Table, o_card: OCard, _pos: Pos) {
   let m_style = createMemo(() => ({
     transform: `translate(calc(${_pos.x} * 100%), calc(${_pos.y} * 100%))`
   }))
-
 
 
   return {
