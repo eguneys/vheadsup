@@ -30,7 +30,7 @@ const App = table => props => {
       <vcardtable ref={_ => setTimeout(() => table.$ref=_)}>
        <cards>
          <For each={table.cards}>{ (card, i) =>
-           <Show when={card.dragging}
+           <Show when={card.flags.ghosting}
            fallback= {
            <Card ref={_ => setTimeout(() => card.$ref = _ ) } onMouseDown={_ => card.mouse_down = true} card={card}/>
            }>
