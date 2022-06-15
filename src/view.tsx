@@ -27,7 +27,7 @@ const App = table => props => {
 
 
   return (<>
-      <vcardtable ref={_ => setTimeout(() => table.$ref=_)}>
+      <vcardtable ref={_ => setTimeout(() => table.$ref=_)} class={table.klass}>
        <cards>
          <For each={table.cards}>{ (card, i) =>
            <Show when={card.flags.ghosting}

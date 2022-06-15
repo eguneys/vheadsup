@@ -29,7 +29,12 @@ cards card.ghosting {
   opacity: 0.4;
 }
 
-cards card.can-drag:hover {
+vcardtable.dragging {
+  cursor: pointer;
+}
+
+vcardtable:not(.dragging) cards card.can-drag:hover {
+  cursor: pointer;
   box-shadow: 0px 0px 1px 1px white;
 }
 

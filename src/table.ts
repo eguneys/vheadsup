@@ -36,6 +36,13 @@ function make_hooks(table: Table) {
 
 export class Table {
 
+  get klass() {
+    return this.m_klass()
+  }
+
+  get dragging() {
+    return !!this.m_drag()?.decay
+  }
 
   get cards() {
     return this.a_cards.cards
@@ -72,7 +79,7 @@ export class Table {
     this.a_cards = make_cards(this)
     this.a_rules = make_rules(this)
 
-    createEffect(on(() => this.m_drag()?.decay, (v, prev) => {
+    createEffect(on(() => this.dragging, (v, prev) => {
       if (!!prev && !v) {
         this.a_cards.drop()
       }
@@ -98,6 +105,9 @@ export class Table {
 
 
 
+    this.m_klass = createMemo(() => [
+      this.dragging ? 'dragging' : ''
+    ])
 
 
   }
