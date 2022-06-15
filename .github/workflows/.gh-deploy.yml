@@ -16,7 +16,7 @@ jobs:
           ./linksoli.sh
           yarn link soli2d
           yarn install
-          yarn build
+          yarn build:examples
 
       - name: Deploy 🚀
         uses: JamesIves/github-pages-deploy-action@v4.2.5

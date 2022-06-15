@@ -8,7 +8,8 @@
     "lint": "tsc --outDir dist",
     "lint:watch": "tsc --outDir dist --watch",
     "watch": "yarn -s clean && rollup --config --watch",
-    "build": "yarn -s clean && rollup --config --config-prod"
+    "build:examples": "yarn -s clean && rollup --config --config-prod",
+    "build": "yarn -s clean && rollup --config --config-prod --format=es"
   },
   "devDependencies": {
     "@babel/core": "^7.18.0",
