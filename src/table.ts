@@ -13,6 +13,16 @@ const backs = cards.map(_ => 'zz')
 const cards4 = [...Array(4).keys()].flatMap(_ => cards.slice(0))
 const backs4 = cards4.map(_ => 'zz')
 
+
+function hit_rectangle(rect: [number, number, number, number], v: Vec2) {
+  let left = rect[0],
+    top = rect[1],
+    right = left + rect[2],
+    bottom = top + rect[3]
+
+  return left <= v.x && v.x <= right && top <= v.y && v.y <= bottom
+}
+
 function make_hooks(table: Table) {
 
   return { 
@@ -138,7 +148,8 @@ function make_rules(table: Table) {
       return {
         o_stack_type: '__' + from,
         o_ir: parseInt(o_ir),
-        drop_stack_type: '__' + to
+        drop_stack_type: '__' + to,
+        _
       }
     })
   })
@@ -156,6 +167,15 @@ function make_rules(table: Table) {
       if (stack) {
         return stack >= o_stack_n - o_i
       }
+    },
+    drop_rule(o_stack_type: string, o_stack_i: number, o_stack_n: number, o_i: number, drop_stack_type: string) {
+      let drop = m_drops().find(_ => 
+                                _.o_stack_type === o_stack_type && 
+                                  _.o_ir === o_stack_n - o_i &&
+                                  _.drop_stack_type === drop_stack_type)
+
+
+      return drop?._
     },
     can_drop(o_stack_type: string, o_stack_i: number, o_stack_n: number, o_i: number, drop_stack_type: string) {
       return !!m_drops().find(_ => 
@@ -225,6 +245,10 @@ function make_cards(table: Table) {
     return m_cards().filter(_ => _.o_stack_type[0] === 'd')
   })
 
+  let m_top_cards = createMemo(() => {
+    return m_cards().filter(_ => !_.o_drag && _.o_top)
+  })
+
 
   createEffect(on(() => _drag_target.vs, (vs) => {
     let drags = m_drag_cards()
@@ -242,9 +266,34 @@ function make_cards(table: Table) {
     return drags[0]
   })
 
+  let m_hovered_drop_target = createMemo(() => {
+    let drag_card = m_drag_card()
+    let top_cards = m_top_cards()
+
+    const center = drag_card?.abs_pos_center
+    if (center) {
+      let hit_top = top_cards.find(_ => {
+        let res = _.vs_rect_bounds()
+        if (res) {
+          return hit_rectangle(res, center)
+        }
+      })
+
+      top_cards.forEach(_ => _.flags.hovering_drop = (_ === hit_top))
+    }
+  })
+
   return {
     drop() {
     let drags = m_drag_cards()
+    let top_cards = m_top_cards()
+
+    let drop_target = top_cards.find(_ => _.flags.hovering_drop)
+
+    if (drop_target) {
+      console.log(drop_target.drop_rule)
+    }
+
     drags.forEach(_ => {
       _.settle_for(_.v_pos, () => {
         m_cards().forEach(_ => _.flags.ghosting = false)
@@ -298,8 +347,15 @@ let suit_klasses = { 's': 'spades', 'd': 'diamonds', 'h': 'hearts', 'c': 'clubs'
 function make_card_flags() {
 
   let _ghosting = createSignal(false)
+  let _hovering_drop = createSignal(false)
 
   return {
+    get hovering_drop() {
+      return read(_hovering_drop)
+    },
+    set hovering_drop(v: boolean) {
+      owrite(_hovering_drop, v)
+    },
     get ghosting() {
       return read(_ghosting)
     },
@@ -321,7 +377,7 @@ function make_card(table: Table, o_card: OCard, _pos: Pos) {
   let v_pos = Vec2.make(o_x, o_y)
 
   let o_back = o_suit === o_rank
-  let o_drag = o_stack_type === 'drag'
+  let o_drag = o_stack_type[0] === 'd'
   let o_top = o_i === o_stack_n - 1
 
   let _lerp_i = 1 - (o_stack_i / o_stack_n)
@@ -335,9 +391,15 @@ function make_card(table: Table, o_card: OCard, _pos: Pos) {
   let m_can_drop = createMemo(() => {
     let { drag_card } = table.a_cards
     if (drag_card) {
-      console.log(table.a_rules.can_drop(...drag_card.can_drop_args, o_stack_type), o_stack_type, o_i, o_stack_n)
       return table.a_rules.can_drop(...drag_card.can_drop_args, o_stack_type)
       && o_top
+    }
+  })
+
+  let m_drop_rule = createMemo(() => {
+    let { drag_card } = table.a_cards
+    if (drag_card) {
+      return table.a_rules.drop_rule(...drag_card.can_drop_args, o_stack_type)
     }
   })
 
@@ -350,7 +412,7 @@ function make_card(table: Table, o_card: OCard, _pos: Pos) {
     })
   }
 
-  if (false && !o_drag) {
+  if (!o_drag) {
     settle_for(v_pos)
   } else {
     _pos.x = v_pos.x
@@ -377,17 +439,33 @@ function make_card(table: Table, o_card: OCard, _pos: Pos) {
     }
   })
 
+  let vs_rect_bounds = createMemo(() => {
+    let rect = vs_rect()
+    let abs = m_abs_pos()
+    if (rect && abs) {
+      return [abs.x, abs.y, rect.x, rect.y]
+    }
+  })
+
+
+  let m_abs_pos_center = createMemo(() => {
+    let rect = vs_rect()
+    if (rect) {
+      return _pos.vs.add(Vec2.unit.half).mul(rect)
+    }
+  })
 
 
 
 
   let m_klass = createMemo(() => (o_back ? back_klass : [ 
+    flags.hovering_drop ? 'hovering-drop' : '',
     flags.ghosting ? 'ghosting' : '',
     m_can_drag() ? 'can-drag' : '',
     m_can_drop() ? 'can-drop' : '',
     rank_klasses[o_rank],
     suit_klasses[o_suit]
-  ]).join(' '));
+  ]).join(' ').trim());
 
 
   let m_style = createMemo(() => ({
@@ -396,6 +474,9 @@ function make_card(table: Table, o_card: OCard, _pos: Pos) {
 
 
   return {
+    get drop_rule() {
+      return m_drop_rule()
+    },
     get can_drop_args() {
       let __o_stack_type = '_' + o_stack_type.slice(1)
       return [__o_stack_type, o_stack_i, o_stack_n, o_i]
@@ -417,6 +498,12 @@ function make_card(table: Table, o_card: OCard, _pos: Pos) {
     get o_i() {
       return o_i
     },
+    get o_top() {
+      return o_top
+    },
+    get o_drag() {
+      return o_drag
+    },
     get suit() {
       return o_suit
     },
@@ -426,6 +513,7 @@ function make_card(table: Table, o_card: OCard, _pos: Pos) {
     card_sr: o_sr,
     card_ref: o_card,
     vs_rect,
+    vs_rect_bounds,
     set $ref($ref: HTMLElement) {
       owrite(_$ref, $ref)
     },
@@ -452,6 +540,9 @@ function make_card(table: Table, o_card: OCard, _pos: Pos) {
     },
     get abs_pos() {
       return m_abs_pos()
+    },
+    get abs_pos_center() {
+      return m_abs_pos_center()
     },
     lerp_rel(x: number, y: number, i: number) {
       _pos.lerp(x, y, i)
