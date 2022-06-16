@@ -3,6 +3,8 @@ import { read, write, owrite } from './play'
 import { createSignal, createMemo, createEffect } from 'solid-js'
 import { Table } from './table'
 
+const stock_pos = `0-0`
+
 const pile_pos = (() => {
 
   let res = {}
@@ -47,6 +49,8 @@ function make_solitaire(fen: string, hooks: any) {
     })
   })
 
+  let m_stock = createMemo(() => [`s-0`, [...Array(8)].map(_ => 'zz').join(''), stock_pos].join('@'))
+
   let m_reveals = createMemo(() => m_pov().reveals)
   let m_drags = createMemo(() => m_pov().drags)
   let m_drops = createMemo(() => m_pov().drops)
@@ -62,12 +66,14 @@ function make_solitaire(fen: string, hooks: any) {
   createEffect(() => table.a_rules.drags = m_drags())
   createEffect(() => table.a_cards.stacks = m_stacks())
   createEffect(() => table.a_rules.reveals = m_reveals())
+  createEffect(() => table.a_cards.stock = m_stock())
 
   table.a_rules.gaps = [
     `h-0@0`,
     `h-1@0`,
     `h-2@0`,
-    `h-3@0`
+    `h-3@0`,
+    `s-0@0`
   ]
 
   return table

@@ -24,6 +24,10 @@ cards card, bases card-base {
 }
 
 
+cards card, bases card-base {
+  border-radius: 0.18em;
+}
+
 bases card-base:before {
   position: absolute;
   width: 100%;
