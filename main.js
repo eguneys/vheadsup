@@ -137,6 +137,9 @@ var VCardTable = (function () {
     if (Owner === null) ;else if (Owner.cleanups === null) Owner.cleanups = [fn];else Owner.cleanups.push(fn);
     return fn;
   }
+  function getOwner() {
+    return Owner;
+  }
   function readSignal() {
     const runningTransition = Transition ;
     if (this.sources && (this.state || runningTransition )) {
@@ -757,8 +760,9 @@ var VCardTable = (function () {
     return [node];
   }
 
-  const _tmpl$ = /*#__PURE__*/template(`<vcardtable><cards></cards></vcardtable>`),
-        _tmpl$2 = /*#__PURE__*/template(`<card><div class="top"><rank></rank><suit></suit></div><div class="front"></div></card>`);
+  const _tmpl$ = /*#__PURE__*/template(`<vcardtable><bases></bases><cards></cards></vcardtable>`),
+        _tmpl$2 = /*#__PURE__*/template(`<card-base></card-base>`),
+        _tmpl$3 = /*#__PURE__*/template(`<card><div class="top"><rank></rank><suit></suit></div><div class="front"></div></card>`);
 
   function unbindable(el, eventName, callback, options) {
     el.addEventListener(eventName, callback, options);
@@ -779,11 +783,22 @@ var VCardTable = (function () {
     });
     return (() => {
       const _el$ = _tmpl$.cloneNode(true),
-            _el$2 = _el$.firstChild;
+            _el$2 = _el$.firstChild,
+            _el$3 = _el$2.nextSibling;
 
       (_ => setTimeout(() => table.$ref = _))(_el$);
 
       insert(_el$2, createComponent(For, {
+        get each() {
+          return table.bases;
+        },
+
+        children: (base, i) => createComponent(Base, {
+          base: base
+        })
+      }));
+
+      insert(_el$3, createComponent(For, {
         get each() {
           return table.cards;
         },
@@ -799,62 +814,229 @@ var VCardTable = (function () {
               onMouseDown: _ => card.mouse_down = true,
               card: card
             });
+          },
+
+          get children() {
+            return createComponent(Card, {
+              card: card
+            });
           }
 
         })
-      }), null);
+      }));
 
-      insert(_el$2, createComponent(For, {
-        get each() {
-          return table.drag_cards;
-        },
-
-        children: card => createComponent(Card, {
-          ref: _ => setTimeout(() => card.$ref = _),
-          onMouseDown: _ => card.mouse_down = true,
-          card: card
-        })
-      }), null);
+      createRenderEffect(() => className(_el$, table.klass));
 
       return _el$;
     })();
   };
 
-  const Card = props => {
+  const Base = props => {
     return (() => {
-      const _el$3 = _tmpl$2.cloneNode(true),
-            _el$4 = _el$3.firstChild,
-            _el$5 = _el$4.firstChild,
-            _el$6 = _el$5.nextSibling,
-            _el$7 = _el$4.nextSibling;
+      const _el$4 = document.importNode(_tmpl$2, true);
 
-      addEventListener(_el$3, "mousedown", props.onMouseDown, true);
+      (_ => setTimeout(() => props.base.$ref = _))(_el$4);
 
-      const _ref$ = props.ref;
-      typeof _ref$ === "function" ? _ref$(_el$3) : props.ref = _el$3;
-
-      insert(_el$5, () => props.card.rank);
-
-      insert(_el$6, () => props.card.suit);
-
-      insert(_el$7, () => props.card.suit);
+      _el$4._$owner = getOwner();
 
       createRenderEffect(_p$ => {
-        const _v$ = props.card.style,
-              _v$2 = props.card.klass;
-        _p$._v$ = style(_el$3, _v$, _p$._v$);
-        _v$2 !== _p$._v$2 && className(_el$3, _p$._v$2 = _v$2);
+        const _v$ = props.base.style,
+              _v$2 = props.base.klass;
+        _p$._v$ = style(_el$4, _v$, _p$._v$);
+        _v$2 !== _p$._v$2 && className(_el$4, _p$._v$2 = _v$2);
         return _p$;
       }, {
         _v$: undefined,
         _v$2: undefined
       });
 
-      return _el$3;
+      return _el$4;
+    })();
+  };
+
+  const Card = props => {
+    return (() => {
+      const _el$5 = _tmpl$3.cloneNode(true),
+            _el$6 = _el$5.firstChild,
+            _el$7 = _el$6.firstChild,
+            _el$8 = _el$7.nextSibling,
+            _el$9 = _el$6.nextSibling;
+
+      addEventListener(_el$5, "mousedown", props.onMouseDown, true);
+
+      const _ref$ = props.ref;
+      typeof _ref$ === "function" ? _ref$(_el$5) : props.ref = _el$5;
+
+      insert(_el$7, () => props.card.rank);
+
+      insert(_el$8, () => props.card.suit);
+
+      insert(_el$9, () => props.card.suit);
+
+      createRenderEffect(_p$ => {
+        const _v$3 = props.card.style,
+              _v$4 = props.card.klass;
+        _p$._v$3 = style(_el$5, _v$3, _p$._v$3);
+        _v$4 !== _p$._v$4 && className(_el$5, _p$._v$4 = _v$4);
+        return _p$;
+      }, {
+        _v$3: undefined,
+        _v$4: undefined
+      });
+
+      return _el$5;
     })();
   };
 
   delegateEvents(["mousedown"]);
+
+  function card(suit, rank) { return rank + suit; }
+  function card_suit(card) { return card[1]; }
+  function card_color(card) { return colors$1[card_suit(card)]; }
+  const colors$1 = { 'c': 'b', 's': 'b', 'h': 'r', 'd': 'r' };
+  const suits$1 = ['c', 'h', 'd', 's'];
+  const ranks$1 = ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'T', 'J', 'Q', 'K'];
+  function is_suit(_) { return suits$1.indexOf(_) > -1; }
+  function is_rank(_) { return ranks$1.indexOf(_) > -1; }
+  function is_card(_) { return _.length === 2 && is_rank(_[0]) && is_suit(_[1]); }
+  const _deck = suits$1.flatMap(suit => ranks$1.map(rank => card(suit, rank)));
+  [...Array(2).keys()].flatMap(_ => _deck.slice(0));
+  [...Array(4).keys()].flatMap(_ => _deck.slice(0));
+
+  function uci_pile(_) {
+      let res = [];
+      for (let i = 0; i < _.length; i += 2) {
+          let card = _.slice(i, i + 2);
+          if (is_card(card)) {
+              res.push(card);
+          }
+      }
+      return res;
+  }
+  function solitaire_fen(solitaire) {
+      let piles = solitaire.piles.map(_ => [_[0], _[1].join('')].join(':')).join('/');
+      let holes = solitaire.holes.map(_ => _.join('')).join('/');
+      return [piles, holes].join(' ');
+  }
+  function fen_solitaire(fen) {
+      let [_piles, _holes] = fen.split(' ');
+      let piles = _piles.split('/').map(_ => {
+          let [nb, pile] = _.split(':');
+          return [parseInt(nb), uci_pile(pile)];
+      });
+      let holes = _holes.split('/').map(uci_pile);
+      return new SolitairePov(piles, holes);
+  }
+
+  class Solitaire {
+      constructor(piles, holes) {
+          this.piles = piles;
+          this.holes = holes;
+      }
+      get pov() {
+          return SolitairePov.from_solitaire(this);
+      }
+      user_apply_drop(rule) {
+          let [_o_name, _o_i, _drop_name] = rule.split('@');
+          let [_, _o_stack_i] = _o_name.split('-');
+          let [__, _drop_stack_i] = _drop_name.split('-');
+          let o_i = parseInt(_o_i), drop_stack_i = parseInt(_drop_stack_i), o_stack_i = parseInt(_o_stack_i);
+          let [o_backs, _o_pile] = this.piles[o_stack_i];
+          let _drop_pile = this.piles[drop_stack_i][1];
+          drop_pile(_o_pile, o_i - o_backs.length, _drop_pile);
+          if (_o_pile.length === 0 && o_backs.length > 0) {
+              let reveal_card = o_backs.pop();
+              _o_pile.push(reveal_card);
+          }
+      }
+  }
+  Solitaire.make = (_deck) => {
+      let piles = [];
+      for (let i = 0; i < 7; i++) {
+          piles.push([_deck.splice(0, i),
+              _deck.splice(0, 1)]);
+      }
+      let holes = [[], [], [], []];
+      return new Solitaire(piles, holes);
+  };
+  class SolitairePov {
+      constructor(piles, holes) {
+          this.piles = piles;
+          this.holes = holes;
+      }
+      get fen() {
+          return solitaire_fen(this);
+      }
+      get stacks() {
+          return this.piles.map((_, i) => {
+              let cards = [...Array(_[0]).keys()].map(_ => 'zz').join('') + _[1].join('');
+              return [`p-${i}`, cards].join('@');
+          });
+      }
+      get drags() {
+          return this.piles.map((_, o_stack_i) => {
+              _[0];
+              let fronts = _[1];
+              return [`p-${o_stack_i}`, fronts.length].join('@');
+          });
+      }
+      get drops() {
+          return this.piles.flatMap((o_stack, o_stack_i) => {
+              let [back, fronts] = o_stack;
+              return fronts.flatMap((_, f_i) => {
+                  let o_i = back + f_i;
+                  return this.piles
+                      .map((drop_stack, drop_stack_i) => {
+                      if (can_drop_piles(o_stack, f_i, drop_stack)) {
+                          return [`p-${o_stack_i}`, o_i, `p-${drop_stack_i}`].join('@');
+                      }
+                  }).filter(Boolean);
+              });
+          });
+      }
+      get reveals() {
+          return this.piles.map((o_stack, o_stack_i) => {
+              let [back, fronts] = o_stack;
+              if (fronts.length === 0 && back > 0) {
+                  return [`p-${o_stack_i}`, back - 1].join('@');
+              }
+          }).filter(Boolean);
+      }
+      user_apply_drop(rule) {
+          let [_o_name, _o_i, _drop_name] = rule.split('@');
+          let [_, _o_stack_i] = _o_name.split('-');
+          let [__, _drop_stack_i] = _drop_name.split('-');
+          let o_i = parseInt(_o_i), drop_stack_i = parseInt(_drop_stack_i), o_stack_i = parseInt(_o_stack_i);
+          let [o_back, _o_pile] = this.piles[o_stack_i];
+          let _drop_pile = this.piles[drop_stack_i][1];
+          drop_pile(_o_pile, o_i - o_back, _drop_pile);
+      }
+  }
+  SolitairePov.from_fen = (fen) => {
+      return fen_solitaire(fen);
+  };
+  SolitairePov.from_solitaire = (solitaire) => {
+      let piles = solitaire.piles.map(_ => [_[0].length, _[1]]);
+      let holes = solitaire.holes;
+      return new SolitairePov(piles, holes);
+  };
+  function can_drop_piles(o_stack, f_i, drop_stack) {
+      let [back, fronts] = o_stack;
+      let card = fronts[f_i];
+      let [drop_back, drop_fronts] = drop_stack;
+      let drop_on_card = drop_fronts.slice(-1)[0];
+      if (!drop_on_card) {
+          if (drop_back === 0) {
+              return true;
+          }
+          return false;
+      }
+      return card_color(card) !== card_color(drop_on_card);
+  }
+  function drop_pile(o_pile, o_f, drop_pile) {
+      let cards = o_pile.splice(o_f);
+      drop_pile.push(...cards);
+  }
 
   class Vec2 {
     static from_angle = n => new Vec2(Math.cos(n), Math.sin(n));
@@ -1060,6 +1242,12 @@ var VCardTable = (function () {
     } else {
       signal[1](_ => fn);
     }
+  }
+  function write(signal, fn) {
+    return signal[1](_ => {
+      fn(_);
+      return _;
+    });
   }
   function read(signal) {
     if (Array.isArray(signal)) {
@@ -1381,8 +1569,19 @@ var VCardTable = (function () {
 
   function make_sticky_pos(make_position) {
     let released_positions = new Map();
+    let immediate;
+
+    function release_immediate(_p) {
+      immediate = _p;
+    }
 
     function acquire_pos(item, v, instant_track = false) {
+      if (immediate) {
+        let res = immediate;
+        immediate = undefined;
+        return res;
+      }
+
       let _ = released_positions.get(item);
 
       if (!instant_track && _ && _.length > 0) {
@@ -1395,6 +1594,7 @@ var VCardTable = (function () {
     }
 
     return {
+      release_immediate,
       acquire_pos,
 
       release_pos(item, pos) {
@@ -1502,11 +1702,25 @@ var VCardTable = (function () {
     one: 1 * rate
   };
 
+  const colors = {
+    h: 'red',
+    'd': 'red',
+    'c': 'black',
+    's': 'black'
+  };
   const suits = ['h', 'd', 'c', 's'];
   const ranks = ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'T', 'J', 'Q', 'K'];
   const cards = ranks.flatMap(rank => suits.map(suit => rank + suit));
   const cards4 = [...Array(4).keys()].flatMap(_ => cards.slice(0));
   const backs4 = cards4.map(_ => 'zz');
+
+  function hit_rectangle(rect, v) {
+    let left = rect[0],
+        top = rect[1],
+        right = left + rect[2],
+        bottom = top + rect[3];
+    return left <= v.x && v.x <= right && top <= v.y && v.y <= bottom;
+  }
 
   function make_hooks(table) {
     return {
@@ -1530,8 +1744,20 @@ var VCardTable = (function () {
   }
 
   class Table {
+    get klass() {
+      return this.m_klass();
+    }
+
+    get dragging() {
+      return !!this.m_drag()?.decay;
+    }
+
     get cards() {
       return this.a_cards.cards;
+    }
+
+    get bases() {
+      return this.a_cards.bases;
     }
 
     onScroll() {
@@ -1542,7 +1768,12 @@ var VCardTable = (function () {
       owrite(this._$ref, $ref);
     }
 
-    constructor() {
+    apply_drop(rule) {
+      this.on_apply_drop(rule);
+    }
+
+    constructor(on_apply_drop) {
+      this.on_apply_drop = on_apply_drop;
       this._$ref = createSignal(undefined, {
         equals: false
       });
@@ -1562,19 +1793,198 @@ var VCardTable = (function () {
         }
       });
       this.a_cards = make_cards(this);
-      createEffect(on(() => this.m_drag()?.decay, (v, prev) => {
+      this.a_rules = make_rules();
+      createEffect(on(() => this.dragging, (v, prev) => {
         if (!!prev && !v) {
           this.a_cards.drop();
         }
       }));
-      setTimeout(() => {
-        this.a_cards.stacks = ['zzzz2h3d@2.2-2', 'zzzz2h3d@1-2', '2c@3-1'];
-      }, 3000);
-      setTimeout(() => {
-        this.a_cards.stacks = ['zzzz2h3d@2.2-2', 'zzzz2h3d@1-2', '2c@4-2'];
-      }, 1000);
+      this.m_klass = createMemo(() => [this.dragging ? 'dragging' : '']);
     }
 
+  }
+
+  function make_rules(table) {
+    let _reveals = createSignal([]);
+
+    let m_reveals = createMemo(() => {
+      let reveals = read(_reveals);
+      return reveals.map(_ => {
+        let [o_stack_type, o_i] = _.split('@');
+
+        return {
+          o_stack_type: '__' + o_stack_type,
+          o_i: parseInt(o_i)
+        };
+      });
+    });
+
+    let _drags = createSignal([]);
+
+    let m_drags = createMemo(() => {
+      let drags = read(_drags);
+      return new Map(drags.map(_ => {
+        let [name, nb] = _.split('@');
+
+        return ['__' + name, parseInt(nb)];
+      }));
+    });
+
+    let _drops = createSignal([]);
+
+    let m_drops = createMemo(() => {
+      let drops = read(_drops);
+      return drops.map(_ => {
+        let [from, o_i, to] = _.split('@');
+
+        return {
+          o_stack_type: '__' + from,
+          o_i: parseInt(o_i),
+          drop_stack_type: '__' + to,
+          _
+        };
+      });
+    });
+    return {
+      get reveals() {
+        return m_reveals();
+      },
+
+      set reveals(reveals) {
+        owrite(_reveals, reveals);
+      },
+
+      set drops(drops) {
+        owrite(_drops, drops);
+      },
+
+      set drags(drags) {
+        owrite(_drags, drags);
+      },
+
+      can_drag(o_stack_type, o_stack_i, o_stack_n, o_i) {
+        let stack = m_drags().get(o_stack_type);
+
+        if (stack) {
+          return stack >= o_stack_n - o_i;
+        }
+      },
+
+      drop_rule(o_stack_type, o_stack_i, o_stack_n, o_i, drop_stack_type) {
+        let drop = m_drops().find(_ => _.o_stack_type === o_stack_type && _.o_i === o_i && _.drop_stack_type === drop_stack_type);
+        return drop?._;
+      },
+
+      can_drop(o_stack_type, o_stack_i, o_stack_n, o_i, drop_stack_type) {
+        return !!m_drops().find(_ => _.o_stack_type === o_stack_type && _.o_i === o_i && _.drop_stack_type === drop_stack_type);
+      }
+
+    };
+  }
+
+  function make_stack(table, stack, o_stack_i) {
+    let [o_name, o_cards, o_pos] = stack.split('@');
+
+    let _pos = Vec2.make(...o_pos.split('-').map(_ => parseFloat(_)));
+
+    let o_stack_type = '__' + o_name;
+    let gap = 0.2;
+    let o_stack_n = o_cards.length / 2;
+    let cards = [];
+
+    for (let i = 0; i < o_cards.length; i += 2) {
+      let o_i = i / 2;
+      let v = Vec2.make(_pos.x, _pos.y + o_i * gap);
+      cards.push([o_stack_type, o_stack_i, o_i, o_cards.slice(i, i + 2), `${v.x}-${v.y}`].join('@'));
+    }
+
+    let m_can_drop_base = createMemo(() => {
+      let {
+        can_drop_args
+      } = table.a_cards;
+
+      if (can_drop_args) {
+        return table.a_rules.can_drop(...can_drop_args, o_name) && m_o_top();
+      }
+    });
+    let base_flags = make_card_flags();
+    let m_base_klass = createMemo(() => [base_flags.hovering_drop ? 'hovering-drop' : '', m_can_drop_base() ? 'can-drop' : ''].join(' ').trim().replace(/\s+/g, ' '));
+    let m_base_style = createMemo(() => ({
+      transform: `translate(calc(${_pos.x} * 100%), calc(${_pos.y} * 100%))`
+    }));
+
+    let _$ref = createSignal();
+
+    let m_rect = createMemo(() => {
+      read(table._$clear_bounds);
+      return read(_$ref)?.getBoundingClientRect();
+    });
+    let vs_rect = createMemo(() => {
+      let r = m_rect();
+
+      if (r) {
+        return Vec2.make(r.width, r.height);
+      }
+    });
+    let m_abs_pos = createMemo(() => {
+      let rect = vs_rect();
+
+      if (rect) {
+        return _pos.mul(rect);
+      }
+    });
+    let vs_rect_bounds = createMemo(() => {
+      let rect = vs_rect();
+      let abs = m_abs_pos();
+
+      if (rect && abs) {
+        return [abs.x, abs.y, rect.x, rect.y];
+      }
+    });
+    let m_drop_rule = createMemo(() => {
+      let {
+        can_drop_args
+      } = table.a_cards;
+
+      if (can_drop_args) {
+        return table.a_rules.drop_rule(...can_drop_args, o_stack_type);
+      }
+    });
+    let base = {
+      get drop_rule() {
+        return m_drop_rule();
+      },
+
+      vs_rect,
+      vs_rect_bounds,
+      o_stack_i,
+
+      set $ref($ref) {
+        owrite(_$ref, $ref);
+      },
+
+      flags: base_flags,
+
+      get klass() {
+        return m_base_klass();
+      },
+
+      get style() {
+        return m_base_style();
+      }
+
+    };
+    return {
+      base,
+      o_name,
+      o_stack_n,
+
+      get pos() {
+        return _pos;
+      },
+
+      cards
+    };
   }
 
   function make_cards(table) {
@@ -1582,51 +1992,57 @@ var VCardTable = (function () {
 
     let _stacks = createSignal([]);
 
+    let _can_drop_args = createSignal();
+
     let sticky_pos = make_sticky_pos((c, v) => make_position(v.x, v.y));
     cards4.forEach(_ => sticky_pos.release_pos(_, make_position(0, 0)));
     backs4.forEach(_ => sticky_pos.release_pos(_, make_position(0, 0)));
     let gap = 0.2;
-    let m_stack_cards = createMemo(() => {
-      let stacks = read(_stacks);
-      return stacks.flatMap((stack, o_stack_i, _arr) => {
-        let o_stack_n = _arr.length;
-        let [o_cards, o_pos] = stack.split('@');
-
-        let _pos = Vec2.make(...o_pos.split('-').map(_ => parseFloat(_)));
-
-        let res = [];
-
-        for (let i = 0; i < o_cards.length; i += 2) {
-          let o_i = i / 2;
-          let v = Vec2.make(_pos.x, _pos.y + o_i * gap);
-          res.push(['rr', o_stack_i, o_stack_n, o_i, o_cards.slice(i, i + 2), `${v.x}-${v.y}`].join('@'));
-        }
-
-        return res;
-      });
-    });
+    let m_stack_more = createMemo(mapArray(_stacks[0], (_, i) => make_stack(table, _, i())));
+    let m_stack_cards = createMemo(() => m_stack_more().flatMap(_ => _.cards));
+    let m_stack_bases = createMemo(() => m_stack_more().map(_ => _.base));
 
     let _cards = createMemo(() => {
       return [...m_stack_cards(), ...read(_drags)];
     });
 
     let m_cards = createMemo(mapArray(_cards, _ => {
-      let [o_stack_type, o_stack_i, o_stack_n, o_i, o_card, o_pos] = _.split('@');
+      let [o_stack_type, o_stack_i, o_i, o_card, o_pos] = _.split('@');
 
+      let m_o_stack_n = createMemo(() => {
+        if (o_stack_type[0] === 'd') {
+          return read(_drags).length;
+        } else {
+          return m_stack_more()[o_stack_i].o_stack_n;
+        }
+      });
       let [x, y] = o_pos.split('-').map(_ => parseFloat(_));
 
       let _p = sticky_pos.acquire_pos(o_card, Vec2.make(x, y));
 
+      let res = make_card(table, _, m_o_stack_n, _p);
       onCleanup(() => {
-        sticky_pos.release_pos(o_card, _p);
+        if (res.revealing) {
+          sticky_pos.release_immediate(_p);
+        } else {
+          if (!res.flags.ghosting) {
+            sticky_pos.release_pos(o_card, _p);
+          }
+        }
       });
-      return make_card(table, _, _p);
+      return res;
     }));
 
     let _drag_target = make_position(0, 0);
 
+    let m_drag_cards = createMemo(() => {
+      return m_cards().filter(_ => _.o_stack_type[0] === 'd');
+    });
+    let m_top_cards = createMemo(() => {
+      return m_cards().filter(_ => !_.o_drag && _.o_top);
+    });
     createEffect(on(() => _drag_target.vs, vs => {
-      let drags = m_cards().filter(_ => _.o_stack_type === 'drag');
+      let drags = m_drag_cards();
       drags.forEach((_, o_i, _arr) => {
         let _i = 1 - o_i / _arr.length,
             _i2 = (_i + 1) * (_i + 1) * (_i + 1) / 8;
@@ -1636,13 +2052,73 @@ var VCardTable = (function () {
         _.lerp_abs_rel(vs, v, 0.1 + _i2 * 0.9);
       });
     }));
+    let m_drag_card = createMemo(() => {
+      let drags = m_drag_cards();
+      return drags[0];
+    });
+    createEffect(() => {
+      let drag_card = m_drag_card();
+      let top_cards = m_top_cards();
+      let bases = m_stack_bases();
+      const center = drag_card?.abs_pos_center;
+
+      if (center) {
+        let hit_top = top_cards.find(_ => {
+          let res = _.vs_rect_bounds();
+
+          if (res) {
+            return hit_rectangle(res, center);
+          }
+        });
+        top_cards.forEach(_ => _.flags.hovering_drop = _ === hit_top);
+        let hit_base = bases.find(_ => {
+          let res = _.vs_rect_bounds();
+
+          if (res) {
+            return hit_rectangle(res, center);
+          }
+        });
+        bases.forEach(_ => _.flags.hovering_drop = _ === hit_base);
+      } else {
+        top_cards.forEach(_ => _.flags.hovering_drop = false);
+        bases.forEach(_ => _.flags.hovering_drop = _ === false);
+      }
+    });
+
+    function drop_target_for_pos_n(stack_i, i) {
+      let {
+        pos,
+        o_stack_n
+      } = m_stack_more()[stack_i];
+      return Vec2.make(pos.x, pos.y + (i + o_stack_n) * gap);
+    }
+
     return {
       drop() {
-        let drags = m_cards().filter(_ => _.o_stack_type === 'drag');
-        drags.forEach(_ => {
-          _.settle_for(_.v_pos, () => {
+        let drags = m_drag_cards();
+        let top_cards = m_top_cards();
+        let bases = m_stack_bases();
+        const drop_target = top_cards.find(_ => _.flags.hovering_drop) || bases.find(_ => _.flags.hovering_drop);
+        drags.forEach((_, i, _arr) => {
+          let settle_vs = _.v_pos;
+
+          if (drop_target?.drop_rule) {
+            settle_vs = drop_target_for_pos_n(drop_target.o_stack_i, i);
+          }
+
+          _.settle_for(settle_vs, () => {
+            if (i !== _arr.length - 1) {
+              return;
+            }
+
+            const rule = drop_target?.drop_rule;
             m_cards().forEach(_ => _.flags.ghosting = false);
             owrite(_drags, []);
+            owrite(_can_drop_args, undefined);
+
+            if (rule) {
+              table.apply_drop(rule);
+            }
           });
         });
       },
@@ -1651,8 +2127,20 @@ var VCardTable = (function () {
         owrite(_stacks, stacks);
       },
 
+      get bases() {
+        return m_stack_bases();
+      },
+
       get cards() {
         return m_cards();
+      },
+
+      get can_drop_args() {
+        return read(_can_drop_args);
+      },
+
+      get drag_card() {
+        return m_drag_card();
       },
 
       find_on_drag_start() {
@@ -1663,11 +2151,15 @@ var VCardTable = (function () {
         let cards = m_cards();
         let card = cards.find(_ => _.mouse_down);
 
-        if (card) {
-          let stack_cards = cards.filter(_ => _.stack_i === card.stack_i);
+        if (card && card.can_drag) {
+          let stack_cards = cards.filter(_ => _.o_stack_i === card.o_stack_i);
           let drags = stack_cards.filter(_ => _.o_i >= card.o_i);
           drags.forEach(_ => _.flags.ghosting = true);
           let {
+            o_stack_type,
+            o_stack_i,
+            o_stack_n,
+            o_i,
             abs_pos
           } = card;
 
@@ -1676,7 +2168,10 @@ var VCardTable = (function () {
             _drag_target.y = abs_pos.y;
           }
 
-          owrite(_drags, drags.map((_, o_i, _arr) => ['drag', o_i, _arr.length, o_i, _.card_sr, _.o_pos].join('@')));
+          let __o_stack_type = '_' + o_stack_type.slice(1);
+
+          owrite(_can_drop_args, [__o_stack_type, o_stack_i, o_stack_n, o_i]);
+          owrite(_drags, drags.map((_, o_i, _arr) => ['d_' + o_stack_type.slice(2), o_i, o_i, _.card_sr, _.o_pos].join('@')));
           return _drag_target;
         }
       }
@@ -1710,7 +2205,17 @@ var VCardTable = (function () {
   function make_card_flags() {
     let _ghosting = createSignal(false);
 
+    let _hovering_drop = createSignal(false);
+
     return {
+      get hovering_drop() {
+        return read(_hovering_drop);
+      },
+
+      set hovering_drop(v) {
+        owrite(_hovering_drop, v);
+      },
+
       get ghosting() {
         return read(_ghosting);
       },
@@ -1722,18 +2227,45 @@ var VCardTable = (function () {
     };
   }
 
-  function make_card(table, o_card, _pos) {
-    let [o_stack_type, o_stack_i, o_stack_n, o_i, o_sr, o_pos] = o_card.split('@');
+  function make_card(table, o_card, m_o_stack_n, _pos) {
+    let [o_stack_type, _o_stack_i, _o_i, o_sr, o_pos] = o_card.split('@');
     let [o_rank, o_suit] = o_sr.split('');
     let [o_x, o_y] = o_pos.split('-').map(_ => parseFloat(_));
+    let o_stack_i = parseInt(_o_stack_i),
+        o_i = parseInt(_o_i);
     let v_pos = Vec2.make(o_x, o_y);
     let o_back = o_suit === o_rank;
+    let o_drag = o_stack_type[0] === 'd';
+    let m_o_top = createMemo(() => o_i === m_o_stack_n() - 1);
+    let m_lerp_i = createMemo(() => 1 - o_i / m_o_stack_n());
+    let flags = make_card_flags();
+    let m_revealing = createMemo(() => !!table.a_rules.reveals.find(_ => _.o_stack_type === o_stack_type && _.o_i === o_i));
+    let m_can_drag = createMemo(() => {
+      let o_stack_n = m_o_stack_n();
+      return table.a_rules.can_drag(o_stack_type, o_stack_i, o_stack_n, o_i);
+    });
+    let m_can_drop = createMemo(() => {
+      let {
+        can_drop_args
+      } = table.a_cards;
 
-    let _lerp_i = 1 - o_stack_i / o_stack_n;
+      if (can_drop_args) {
+        return table.a_rules.can_drop(...can_drop_args, o_stack_type) && m_o_top();
+      }
+    });
+    let m_drop_rule = createMemo(() => {
+      let {
+        can_drop_args
+      } = table.a_cards;
+
+      if (can_drop_args) {
+        return table.a_rules.drop_rule(...can_drop_args, o_stack_type);
+      }
+    });
 
     function settle_for(v_pos, on_settled = () => {}) {
       loop_for(ticks.thirds, (dt, dt0, _it) => {
-        _pos.lerp(v_pos.x, v_pos.y, _lerp_i * 0.2 + _it * 0.8);
+        _pos.lerp(v_pos.x, v_pos.y, m_lerp_i() * 0.2 + _it * 0.8);
 
         if (_it === 1) {
           on_settled(_it);
@@ -1741,7 +2273,9 @@ var VCardTable = (function () {
       });
     }
 
-    {
+    if (!o_drag) {
+      settle_for(v_pos);
+    } else {
       _pos.x = v_pos.x;
       _pos.y = v_pos.y;
     }
@@ -1766,24 +2300,71 @@ var VCardTable = (function () {
         return _pos.vs.mul(rect);
       }
     });
-    let m_klass = createMemo(() => (o_back ? back_klass : [rank_klasses[o_rank], suit_klasses[o_suit]]).join(' '));
+    let vs_rect_bounds = createMemo(() => {
+      let rect = vs_rect();
+      let abs = m_abs_pos();
+
+      if (rect && abs) {
+        return [abs.x, abs.y, rect.x, rect.y];
+      }
+    });
+    let m_abs_pos_center = createMemo(() => {
+      let rect = vs_rect();
+
+      if (rect) {
+        return _pos.vs.add(Vec2.unit.half).mul(rect);
+      }
+    });
+    let m_klass = createMemo(() => [flags.hovering_drop ? 'hovering-drop' : '', flags.ghosting ? 'ghosting' : '', m_revealing() ? 'revealing' : '', m_can_drag() ? 'can-drag' : '', m_can_drop() ? 'can-drop' : '', ...(o_back ? back_klass : [colors[o_suit], rank_klasses[o_rank], suit_klasses[o_suit]])].join(' ').trim().replace(/\s+/g, ' '));
     let m_style = createMemo(() => ({
       transform: `translate(calc(${_pos.x} * 100%), calc(${_pos.y} * 100%))`
     }));
     return {
+      get drop_rule() {
+        return m_drop_rule();
+      },
+
+      get can_drop_args() {
+        let o_stack_n = m_o_stack_n();
+
+        let __o_stack_type = '_' + o_stack_type.slice(1);
+
+        return [__o_stack_type, o_stack_i, o_stack_n, o_i];
+      },
+
+      get can_drop() {
+        return m_can_drop();
+      },
+
+      get can_drag() {
+        return m_can_drag();
+      },
+
+      get revealing() {
+        return m_revealing();
+      },
+
       settle_for,
-      flags: make_card_flags(),
+      flags,
+      o_stack_type,
+      o_stack_i,
 
-      get o_stack_type() {
-        return o_stack_type;
+      get o_stack_n() {
+        return m_o_stack_n();
       },
 
-      get stack_i() {
-        return o_stack_i;
+      o_i,
+
+      get o_top() {
+        return m_o_top();
       },
 
-      get o_i() {
-        return o_i;
+      get o_drag() {
+        return o_drag;
+      },
+
+      get color() {
+        return colors[o_suit];
       },
 
       get suit() {
@@ -1797,6 +2378,7 @@ var VCardTable = (function () {
       card_sr: o_sr,
       card_ref: o_card,
       vs_rect,
+      vs_rect_bounds,
 
       set $ref($ref) {
         owrite(_$ref, $ref);
@@ -1834,6 +2416,10 @@ var VCardTable = (function () {
         return m_abs_pos();
       },
 
+      get abs_pos_center() {
+        return m_abs_pos_center();
+      },
+
       lerp_rel(x, y, i) {
         _pos.lerp(x, y, i);
       },
@@ -1849,8 +2435,77 @@ var VCardTable = (function () {
     };
   }
 
+  const pile_pos = (() => {
+    let res = {};
+
+    for (let i = 0; i < 7; i++) {
+      let x = 1.3 + i * 1.1;
+      let y = 0.2;
+      res[`p-${i}`] = `${x}-${y}`;
+    }
+
+    return res;
+  })();
+
+  function make_solitaire(fen, hooks) {
+    let _pov = createSignal(SolitairePov.from_fen(fen), {
+      equals: false
+    });
+
+    createEffect(() => {
+      let fen = read(hooks._receive_fen);
+
+      if (fen) {
+        owrite(_pov, SolitairePov.from_fen(fen));
+      }
+    });
+
+    let m_pov = () => read(_pov);
+
+    let m_stacks = createMemo(() => {
+      return m_pov().stacks.map(stack => {
+        let [o_stack_type] = stack.split('@');
+        return [stack, pile_pos[o_stack_type]].join('@');
+      });
+    });
+    let m_reveals = createMemo(() => m_pov().reveals);
+    let m_drags = createMemo(() => m_pov().drags);
+    let m_drops = createMemo(() => m_pov().drops);
+
+    function on_apply_drop(rule) {
+      hooks.send_user_apply_drop(rule);
+      write(_pov, _ => _.user_apply_drop(rule));
+    }
+
+    let table = new Table(on_apply_drop);
+    createEffect(() => table.a_rules.drops = m_drops());
+    createEffect(() => table.a_rules.drags = m_drags());
+    createEffect(() => table.a_cards.stacks = m_stacks());
+    createEffect(() => table.a_rules.reveals = m_reveals());
+    return table;
+  }
+
+  function ctrl(options) {
+    let solitaire = Solitaire.make(_deck.slice(0));
+    let fen = solitaire.pov.fen;
+
+    let _receive_fen = createSignal();
+
+    let hooks = {
+      send_user_apply_drop(rule) {
+        solitaire.user_apply_drop(rule);
+        setTimeout(() => {
+          owrite(_receive_fen, solitaire.pov.fen);
+        }, Math.random() * 600);
+      },
+
+      _receive_fen
+    };
+    return make_solitaire(fen, hooks);
+  }
+
   function VCardTable(element, options = {}) {
-    let table = new Table();
+    let table = ctrl();
     render(App(table), element);
     return {};
   }
