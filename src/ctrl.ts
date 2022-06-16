@@ -36,15 +36,7 @@ function make_solitaire(table: Table) {
     return pov.drops
   }
 
-  console.log(m_drops())
-
-    table.a_rules.drops = [
-      'p1@1@p3',
-      'p1@2@p3',
-      'p1@1@p4',
-      'p2@1@p3'
-    ]
-
+    table.a_rules.drops = m_drops()
     table.a_rules.drags = m_drags()
     table.a_cards.stacks = m_stacks()
 
