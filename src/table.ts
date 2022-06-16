@@ -247,8 +247,12 @@ function make_cards(table: Table) {
 
     let res = make_card(table, _, m_o_stack_n, _p)
     onCleanup(() => {
-      if (!res.flags.ghosting) {
-        sticky_pos.release_pos(o_card, _p)
+      if (res.revealing) {
+        sticky_pos.release_immediate(_p)
+      } else {
+        if (!res.flags.ghosting) {
+          sticky_pos.release_pos(o_card, _p)
+        }
       }
     })
 

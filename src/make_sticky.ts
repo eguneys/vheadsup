@@ -7,7 +7,19 @@ export function make_sticky_pos<Item>(make_position: (item: Item, v: Vec2) => Po
 
   let released_positions = new Map<Item, Array<Pos>>()
 
+  let immediate
+
+
+  function release_immediate(_p: Pos) {
+    immediate = _p
+  }
+
   function acquire_pos(item: Item, v: Vec2, instant_track: boolean = false) {
+    if (immediate) {
+      let res = immediate
+      immediate = undefined
+      return res
+    }
     let _ = released_positions.get(item)
     if (!instant_track && _ && _.length > 0) {
       _.sort((a, b) => b.vs.distance(v) - a.vs.distance(v))
@@ -18,6 +30,7 @@ export function make_sticky_pos<Item>(make_position: (item: Item, v: Vec2) => Po
   }
 
   return {
+    release_immediate,
     acquire_pos,
     release_pos(item: Item, pos: Position) {
       let res = released_positions.get(item)
