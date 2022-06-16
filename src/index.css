@@ -35,7 +35,7 @@ vcardtable.dragging {
 
 vcardtable:not(.dragging) cards card.can-drag:hover {
   cursor: pointer;
-  box-shadow: 0px 0px 1px 1px white;
+  box-shadow: 0px 0px 1px 1px yellow;
 }
 
 cards card.can-drop {

@@ -6,6 +6,7 @@ import { make_drag, make_sticky_pos } from './make_sticky'
 import { loop_for } from './play'
 import { ticks } from './shared'
 
+const colors = { h: 'red', 'd': 'red', 'c': 'black', 's': 'black' }
 const suits = ['h', 'd', 'c', 's']
 const ranks = ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'T', 'J', 'Q', 'K']
 const cards = ranks.flatMap(rank => suits.map(suit => rank + suit))
@@ -521,6 +522,7 @@ function make_card(table: Table, o_card: OCard, m_o_stack_n: number, _pos: Pos) 
     m_can_drag() ? 'can-drag' : '',
     m_can_drop() ? 'can-drop' : '',
     ...(o_back ? back_klass : [
+      colors[o_suit],
       rank_klasses[o_rank],
       suit_klasses[o_suit]
     ])
@@ -563,6 +565,9 @@ function make_card(table: Table, o_card: OCard, m_o_stack_n: number, _pos: Pos) 
     },
     get o_drag() {
       return o_drag
+    },
+    get color() {
+      return colors[o_suit]
     },
     get suit() {
       return o_suit

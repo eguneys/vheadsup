@@ -4,5 +4,13 @@ vcardtable {
 
 
 cards card {
-  background: blue;
+  background: #ccdcdc;
+}
+
+cards card.back {
+  color: gray;
+}
+
+cards card.red {
+  color: red
 }
