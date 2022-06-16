@@ -15,6 +15,7 @@ jobs:
         run: |
           ./linksoli.sh
           yarn link soli2d
+          yarn link lheadsup
           yarn install
           yarn build:examples
 

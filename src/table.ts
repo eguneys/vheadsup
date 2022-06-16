@@ -131,31 +131,6 @@ export class Table {
     }))
 
 
-    setTimeout(() => {
-
-      this.a_rules.drops = [
-        'p1@1@p3',
-        'p1@2@p3',
-        'p1@1@p4',
-        'p2@1@p3'
-      ]
-
-      this.a_rules.drags = [
-        'p1@2',
-        'p2@2',
-        'p3@1'
-      ]
-
-    this.a_cards.stacks = [
-      'p1@zzzz2h3d@0.2-2', 
-      'p2@zzzz2h3d@1.4-2', 
-      'p3@2c@2.6-2', 
-      'p4@2c3h@4.6-2', 
-    ]
-    }, 1000)
-
-
-
     this.m_klass = createMemo(() => [
       this.dragging ? 'dragging' : ''
     ])
