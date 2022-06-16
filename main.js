@@ -928,26 +928,47 @@ var VCardTable = (function () {
       return new SolitairePov(piles, holes);
   }
 
+  function call_drop_rule_hooks(hooks) {
+      return (rule) => {
+          let [_o_name, _o_i, _drop_name] = rule.split('@');
+          let [_, _o_stack_i] = _o_name.split('-');
+          let [_drop_stack_type, _drop_stack_i] = _drop_name.split('-');
+          let o_i = parseInt(_o_i), drop_stack_i = parseInt(_drop_stack_i), o_stack_i = parseInt(_o_stack_i);
+          let stack = hooks.cut_o_pile(o_stack_i, o_i);
+          if (_drop_stack_type[0] === 'p') {
+              hooks.drop_o_pile(stack, drop_stack_i);
+          }
+          else if (_drop_stack_type[0] === 'h') {
+              hooks.drop_o_hole(stack, drop_stack_i);
+          }
+      };
+  }
   class Solitaire {
       constructor(piles, holes) {
           this.piles = piles;
           this.holes = holes;
+          this.apply_drop = call_drop_rule_hooks(this);
       }
       get pov() {
           return SolitairePov.from_solitaire(this);
       }
-      user_apply_drop(rule) {
-          let [_o_name, _o_i, _drop_name] = rule.split('@');
-          let [_, _o_stack_i] = _o_name.split('-');
-          let [__, _drop_stack_i] = _drop_name.split('-');
-          let o_i = parseInt(_o_i), drop_stack_i = parseInt(_drop_stack_i), o_stack_i = parseInt(_o_stack_i);
-          let [o_backs, _o_pile] = this.piles[o_stack_i];
-          let _drop_pile = this.piles[drop_stack_i][1];
-          drop_pile(_o_pile, o_i - o_backs.length, _drop_pile);
-          if (_o_pile.length === 0 && o_backs.length > 0) {
+      cut_o_pile(o_stack_i, o_i) {
+          let [o_backs, o_pile] = this.piles[o_stack_i];
+          let o_f = o_i - o_backs.length;
+          let res = o_pile.splice(o_f);
+          if (o_pile.length === 0 && o_backs.length > 0) {
               let reveal_card = o_backs.pop();
-              _o_pile.push(reveal_card);
+              o_pile.push(reveal_card);
           }
+          return res;
+      }
+      drop_o_pile(cards, drop_stack_i) {
+          let drop_pile = this.piles[drop_stack_i][1];
+          drop_pile.push(...cards);
+      }
+      drop_o_hole(cards, drop_stack_i) {
+          let drop_hole = this.holes[drop_stack_i];
+          drop_hole.push(...cards);
       }
   }
   Solitaire.make = (_deck) => {
@@ -963,15 +984,21 @@ var VCardTable = (function () {
       constructor(piles, holes) {
           this.piles = piles;
           this.holes = holes;
+          this.apply_drop = call_drop_rule_hooks(this);
       }
       get fen() {
           return solitaire_fen(this);
       }
       get stacks() {
-          return this.piles.map((_, i) => {
+          let piles = this.piles.map((_, i) => {
               let cards = [...Array(_[0]).keys()].map(_ => 'zz').join('') + _[1].join('');
               return [`p-${i}`, cards].join('@');
           });
+          let holes = this.holes.map((_, i) => {
+              let cards = _.join('');
+              return [`h-${i}`, cards].join('@');
+          });
+          return [...piles, ...holes];
       }
       get drags() {
           return this.piles.map((_, o_stack_i) => {
@@ -981,9 +1008,9 @@ var VCardTable = (function () {
           });
       }
       get drops() {
-          return this.piles.flatMap((o_stack, o_stack_i) => {
+          let piles = this.piles.flatMap((o_stack, o_stack_i) => {
               let [back, fronts] = o_stack;
-              return fronts.flatMap((_, f_i) => {
+              let _piles = fronts.flatMap((_, f_i) => {
                   let o_i = back + f_i;
                   return this.piles
                       .map((drop_stack, drop_stack_i) => {
@@ -992,7 +1019,18 @@ var VCardTable = (function () {
                       }
                   }).filter(Boolean);
               });
+              let _holes = this.holes.map((_, drop_stack_i) => {
+                  let front = fronts.slice(-1)[0];
+                  let o_i = back + fronts.length - 1;
+                  if (front && can_drop_pile_hole()) {
+                      return [`p-${o_stack_i}`, o_i, `h-${drop_stack_i}`].join('@');
+                  }
+              }).filter(Boolean);
+              return [..._piles, ..._holes];
           });
+          return [
+              ...piles
+          ];
       }
       get reveals() {
           return this.piles.map((o_stack, o_stack_i) => {
@@ -1002,14 +1040,19 @@ var VCardTable = (function () {
               }
           }).filter(Boolean);
       }
-      user_apply_drop(rule) {
-          let [_o_name, _o_i, _drop_name] = rule.split('@');
-          let [_, _o_stack_i] = _o_name.split('-');
-          let [__, _drop_stack_i] = _drop_name.split('-');
-          let o_i = parseInt(_o_i), drop_stack_i = parseInt(_drop_stack_i), o_stack_i = parseInt(_o_stack_i);
-          let [o_back, _o_pile] = this.piles[o_stack_i];
-          let _drop_pile = this.piles[drop_stack_i][1];
-          drop_pile(_o_pile, o_i - o_back, _drop_pile);
+      cut_o_pile(o_stack_i, o_i) {
+          let [o_backs, o_pile] = this.piles[o_stack_i];
+          let o_f = o_i - o_backs;
+          let res = o_pile.splice(o_f);
+          return res;
+      }
+      drop_o_pile(cards, drop_stack_i) {
+          let drop_pile = this.piles[drop_stack_i][1];
+          drop_pile.push(...cards);
+      }
+      drop_o_hole(cards, drop_stack_i) {
+          let drop_hole = this.holes[drop_stack_i];
+          drop_hole.push(...cards);
       }
   }
   SolitairePov.from_fen = (fen) => {
@@ -1020,6 +1063,9 @@ var VCardTable = (function () {
       let holes = solitaire.holes;
       return new SolitairePov(piles, holes);
   };
+  function can_drop_pile_hole(o_hole, front) {
+      return true;
+  }
   function can_drop_piles(o_stack, f_i, drop_stack) {
       let [back, fronts] = o_stack;
       let card = fronts[f_i];
@@ -1032,10 +1078,6 @@ var VCardTable = (function () {
           return false;
       }
       return card_color(card) !== card_color(drop_on_card);
-  }
-  function drop_pile(o_pile, o_f, drop_pile) {
-      let cards = o_pile.splice(o_f);
-      drop_pile.push(...cards);
   }
 
   class Vec2 {
@@ -1805,6 +1847,17 @@ var VCardTable = (function () {
   }
 
   function make_rules(table) {
+    let _gaps = createSignal([]);
+
+    let m_gaps = createMemo(() => {
+      let gaps = read(_gaps);
+      return new Map(gaps.map(_ => {
+        let [o_stack_type, gap] = _.split('@');
+
+        return ['__' + o_stack_type, parseInt(gap)];
+      }));
+    });
+
     let _reveals = createSignal([]);
 
     let m_reveals = createMemo(() => {
@@ -1846,6 +1899,14 @@ var VCardTable = (function () {
       });
     });
     return {
+      set gaps(gaps) {
+        owrite(_gaps, gaps);
+      },
+
+      get gaps() {
+        return m_gaps();
+      },
+
       get reveals() {
         return m_reveals();
       },
@@ -1888,7 +1949,7 @@ var VCardTable = (function () {
     let _pos = Vec2.make(...o_pos.split('-').map(_ => parseFloat(_)));
 
     let o_stack_type = '__' + o_name;
-    let gap = 0.2;
+    let gap = table.a_rules.gaps.get(o_stack_type) ?? 0.2;
     let o_stack_n = o_cards.length / 2;
     let cards = [];
 
@@ -1978,6 +2039,7 @@ var VCardTable = (function () {
       base,
       o_name,
       o_stack_n,
+      o_stack_type,
 
       get pos() {
         return _pos;
@@ -1997,7 +2059,6 @@ var VCardTable = (function () {
     let sticky_pos = make_sticky_pos((c, v) => make_position(v.x, v.y));
     cards4.forEach(_ => sticky_pos.release_pos(_, make_position(0, 0)));
     backs4.forEach(_ => sticky_pos.release_pos(_, make_position(0, 0)));
-    let gap = 0.2;
     let m_stack_more = createMemo(mapArray(_stacks[0], (_, i) => make_stack(table, _, i())));
     let m_stack_cards = createMemo(() => m_stack_more().flatMap(_ => _.cards));
     let m_stack_bases = createMemo(() => m_stack_more().map(_ => _.base));
@@ -2041,6 +2102,7 @@ var VCardTable = (function () {
     let m_top_cards = createMemo(() => {
       return m_cards().filter(_ => !_.o_drag && _.o_top);
     });
+    let gap = 0.2;
     createEffect(on(() => _drag_target.vs, vs => {
       let drags = m_drag_cards();
       drags.forEach((_, o_i, _arr) => {
@@ -2087,9 +2149,11 @@ var VCardTable = (function () {
 
     function drop_target_for_pos_n(stack_i, i) {
       let {
+        o_stack_type,
         pos,
         o_stack_n
       } = m_stack_more()[stack_i];
+      let gap = table.a_rules.gaps.get(o_stack_type) ?? 0.2;
       return Vec2.make(pos.x, pos.y + (i + o_stack_n) * gap);
     }
 
@@ -2444,6 +2508,12 @@ var VCardTable = (function () {
       res[`p-${i}`] = `${x}-${y}`;
     }
 
+    for (let i = 0; i < 4; i++) {
+      let x = 1.3 + 7 * 1.1 + 0.2;
+      let y = 0.2 + i * 1.07;
+      res[`h-${i}`] = `${x}-${y}`;
+    }
+
     return res;
   })();
 
@@ -2474,7 +2544,7 @@ var VCardTable = (function () {
 
     function on_apply_drop(rule) {
       hooks.send_user_apply_drop(rule);
-      write(_pov, _ => _.user_apply_drop(rule));
+      write(_pov, _ => _.apply_drop(rule));
     }
 
     let table = new Table(on_apply_drop);
@@ -2482,6 +2552,7 @@ var VCardTable = (function () {
     createEffect(() => table.a_rules.drags = m_drags());
     createEffect(() => table.a_cards.stacks = m_stacks());
     createEffect(() => table.a_rules.reveals = m_reveals());
+    table.a_rules.gaps = [`h-0@0`, `h-1@0`, `h-2@0`, `h-3@0`];
     return table;
   }
 
@@ -2493,7 +2564,7 @@ var VCardTable = (function () {
 
     let hooks = {
       send_user_apply_drop(rule) {
-        solitaire.user_apply_drop(rule);
+        solitaire.apply_drop(rule);
         setTimeout(() => {
           owrite(_receive_fen, solitaire.pov.fen);
         }, Math.random() * 600);
