@@ -16,9 +16,17 @@ const pile_pos = (() => {
 })()
 
 
-function make_solitaire(fen: string) {
+function make_solitaire(fen: string, hooks: any) {
 
   let _pov = createSignal(SolitairePov.from_fen(fen), { equals: false })
+
+  createEffect(() => {
+    let fen = read(hooks._receive_fen)
+
+    if (fen) {
+      owrite(_pov, SolitairePov.from_fen(fen))
+    }
+  })
 
   let m_pov = () => read(_pov)
 
@@ -35,6 +43,7 @@ function make_solitaire(fen: string) {
   let m_drops = createMemo(() => m_pov().drops)
 
   function on_apply_drop(rule: DropRule) {
+    hooks.send_user_apply_drop(rule)
     write(_pov, _ => _.user_apply_drop(rule))
   }
 
@@ -50,6 +59,21 @@ function make_solitaire(fen: string) {
 
 
 export default function ctrl(options: {}) {
-  let fen = Solitaire.make(_deck.slice(0)).pov.fen
-  return make_solitaire(fen)
+
+  let solitaire = Solitaire.make(_deck.slice(0))
+  let fen = solitaire.pov.fen
+
+  let _receive_fen = createSignal()
+
+  let hooks = {
+    send_user_apply_drop(rule: DropRule) {
+      solitaire.user_apply_drop(rule)
+      setTimeout(() => {
+        owrite(_receive_fen, solitaire.pov.fen)
+      }, Math.random() * 600)
+    },
+    _receive_fen
+  }
+
+  return make_solitaire(fen, hooks)
 }

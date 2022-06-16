@@ -198,7 +198,6 @@ function make_stack(table: Table, stack: Stack, o_stack_i: number) {
     cards.push(['__' + o_name, o_stack_i, o_i, o_cards.slice(i, i + 2), `${v.x}-${v.y}`].join('@'))
   }
 
-
   return {
     o_name,
     o_stack_n,
@@ -424,7 +423,7 @@ function make_card(table: Table, o_card: OCard, m_o_stack_n: number, _pos: Pos) 
   let o_drag = o_stack_type[0] === 'd'
   let m_o_top = createMemo(() => o_i === m_o_stack_n() - 1)
 
-  let m_lerp_i = createMemo(() => 1 - (o_stack_i / m_o_stack_n()))
+  let m_lerp_i = createMemo(() => 1 - (o_i / m_o_stack_n()))
 
   let flags = make_card_flags()
 
