@@ -192,6 +192,7 @@ function make_stack(table: Table, stack: Stack, o_stack_i: number) {
   let [o_name, o_cards, o_pos] = stack.split('@')
   let _pos = Vec2.make(...o_pos.split('-').map(_ => parseFloat(_)))
 
+  let o_stack_type = '__' + o_name
   let gap = 0.2
   let o_stack_n = o_cards.length / 2
   let cards = []
@@ -199,7 +200,7 @@ function make_stack(table: Table, stack: Stack, o_stack_i: number) {
   for (let i = 0; i < o_cards.length; i+=2) {
     let o_i = i/ 2
     let v = Vec2.make(_pos.x, _pos.y + (o_i) * gap)
-    cards.push(['__' + o_name, o_stack_i, o_i, o_cards.slice(i, i + 2), `${v.x}-${v.y}`].join('@'))
+    cards.push([o_stack_type, o_stack_i, o_i, o_cards.slice(i, i + 2), `${v.x}-${v.y}`].join('@'))
   }
 
   let m_can_drop_base = createMemo(() => {
@@ -243,8 +244,6 @@ function make_stack(table: Table, stack: Stack, o_stack_i: number) {
     }
   })
 
-
-
   let vs_rect_bounds = createMemo(() => {
     let rect = vs_rect()
     let abs = m_abs_pos()
@@ -253,11 +252,23 @@ function make_stack(table: Table, stack: Stack, o_stack_i: number) {
     }
   })
 
+  let m_drop_rule = createMemo(() => {
+    let { can_drop_args } = table.a_cards
+    if (can_drop_args) {
+      return table.a_rules.drop_rule(...can_drop_args, o_stack_type)
+    }
+  })
+
+
 
 
   let base = {
+    get drop_rule() {
+      return m_drop_rule()
+    },
     vs_rect,
     vs_rect_bounds,
+    o_stack_i,
     set $ref($ref: HTMLElement) {
       owrite(_$ref, $ref)
     },
@@ -401,9 +412,10 @@ function make_cards(table: Table) {
     drop() {
     let drags = m_drag_cards()
     let top_cards = m_top_cards()
+    let bases = m_stack_bases()
 
-    const drop_target = top_cards.find(_ => _.flags.hovering_drop)
-
+    const drop_target = top_cards.find(_ => _.flags.hovering_drop) ||
+      bases.find(_ => _.flags.hovering_drop)
 
     drags.forEach((_, i, _arr) => {
       let settle_vs = _.v_pos

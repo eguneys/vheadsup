@@ -40,6 +40,7 @@ bases card-base.hovering-drop:before {
 
 cards card {
   box-shadow: 1px 0px 2px black;
+  transition: opacity 0.2s;
 }
 
 cards card.ghosting {
