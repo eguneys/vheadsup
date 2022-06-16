@@ -68,42 +68,11 @@ export class Table {
   }
 
   apply_drop(rule: DropRule) {
-    let [o_stack_n, o_i, drop_stack_n] = rule.split('@')
-
-    let o_stack_i = this.a_cards.stacks.findIndex(_ => _.split('@')[0] === o_stack_n)
-
-    let o_stack = this.a_cards.stacks[o_stack_i]
-    let [o_name, o_cards, o_pos] = o_stack.split('@')
-    let new_cards = o_cards.slice(0, o_i * 2)
-    let cut_cards = o_cards.slice(o_i * 2)
-    let new_stack = [o_name, new_cards, o_pos].join('@')
-
-    let new_stacks = this.a_cards.stacks.slice(0)
-
-    new_stacks[o_stack_i] = new_stack
-
-
-    let drop_stack_i = this.a_cards.stacks.findIndex(_ => _.split('@')[0] === drop_stack_n)
-
-    let d_stack = this.a_cards.stacks[drop_stack_i]
-
-    let [d_o_name, d_o_cards, d_o_pos] = d_stack.split('@')
-
-    let d_new_cards = d_o_cards + cut_cards
-    let d_new_stack = [d_o_name, d_new_cards, d_o_pos].join('@')
-
-
-
-    new_stacks[drop_stack_i] = d_new_stack
-
-
-
-    this.a_cards.stacks = new_stacks
-
+    this.on_apply_drop(rule)
   }
 
 
-  constructor() {
+  constructor(readonly on_apply_drop: (rule: DropRule) => void) {
 
     this._$ref = createSignal(undefined, { equals: false })
     let m_ref = createMemo(() => read(this._$ref))
@@ -338,16 +307,15 @@ function make_cards(table: Table) {
         settle_vs = drop_target_for_pos_n(drop_target.o_stack_i, i)
       }
 
-      owrite(_can_drop_args, undefined)
 
       _.settle_for(settle_vs, () => {
         if (i !== _arr.length - 1) { return }
-
 
         const rule = drop_target?.drop_rule
 
         m_cards().forEach(_ => _.flags.ghosting = false)
         owrite(_drags, [])
+        owrite(_can_drop_args, undefined)
 
         if (rule) {
           table.apply_drop(rule)
