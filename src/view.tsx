@@ -28,6 +28,11 @@ const App = table => props => {
 
   return (<>
       <vcardtable ref={_ => setTimeout(() => table.$ref=_)} class={table.klass}>
+       <bases>
+         <For each={table.bases}>{ (base, i) =>
+           <Base base={base}/>
+         }</For>
+       </bases>
        <cards>
          <For each={table.cards}>{ (card, i) =>
            <Show when={card.flags.ghosting}
@@ -38,12 +43,13 @@ const App = table => props => {
            <Card card={card}/>
            </Show>
          }</For>
-         <For each={table.drag_cards}>{ card =>
-         <Card card={card}/>
-           }</For>
        </cards>
       </vcardtable>
       </>)
+}
+
+const Base = props => {
+  return (<card-base ref={_ => setTimeout(() => props.base.$ref = _) } style={props.base.style} class={props.base.klass}/>)
 }
 
 const Card = props => {

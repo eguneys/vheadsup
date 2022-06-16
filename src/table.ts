@@ -59,6 +59,10 @@ export class Table {
     return this.a_cards.cards
   }
 
+  get bases() {
+    return this.a_cards.bases
+  }
+
   onScroll() {
     owrite(this._$clear_bounds)
   }
@@ -198,7 +202,76 @@ function make_stack(table: Table, stack: Stack, o_stack_i: number) {
     cards.push(['__' + o_name, o_stack_i, o_i, o_cards.slice(i, i + 2), `${v.x}-${v.y}`].join('@'))
   }
 
+  let m_can_drop_base = createMemo(() => {
+    let { can_drop_args } = table.a_cards
+    if (can_drop_args) {
+      return table.a_rules.can_drop(...can_drop_args, o_name)
+      && m_o_top()
+    }
+  })
+
+
+  let base_flags = make_card_flags()
+
+  let m_base_klass = createMemo(() => [
+    base_flags.hovering_drop ? 'hovering-drop' : '',
+    m_can_drop_base() ? 'can-drop' : '',
+  ].join(' ').trim().replace(/\s+/g, ' '))
+
+  let m_base_style = createMemo(() => ({
+    transform: `translate(calc(${_pos.x} * 100%), calc(${_pos.y} * 100%))`
+  }))
+
+  let _$ref = createSignal()
+
+  let m_rect = createMemo(() => {
+    read(table._$clear_bounds)
+    return read(_$ref)?.getBoundingClientRect()
+  })
+
+  let vs_rect = createMemo(() => {
+    let r = m_rect()
+    if (r) {
+      return Vec2.make(r.width, r.height)
+    }
+  })
+
+  let m_abs_pos = createMemo(() => {
+    let rect = vs_rect()
+    if (rect) {
+      return _pos.mul(rect)
+    }
+  })
+
+
+
+  let vs_rect_bounds = createMemo(() => {
+    let rect = vs_rect()
+    let abs = m_abs_pos()
+    if (rect && abs) {
+      return [abs.x, abs.y, rect.x, rect.y]
+    }
+  })
+
+
+
+  let base = {
+    vs_rect,
+    vs_rect_bounds,
+    set $ref($ref: HTMLElement) {
+      owrite(_$ref, $ref)
+    },
+    flags: base_flags,
+    get klass() {
+      return m_base_klass()
+    },
+    get style() {
+      return m_base_style()
+    }
+  }
+
   return {
+    base,
     o_name,
     o_stack_n,
     get pos() {
@@ -224,6 +297,7 @@ function make_cards(table: Table) {
   let gap = 0.2
   let m_stack_more = createMemo(mapArray(_stacks[0], (_, i) => make_stack(table, _, i()))) 
   let m_stack_cards = createMemo(() => m_stack_more().flatMap(_ => _.cards))
+  let m_stack_bases = createMemo(() => m_stack_more().map(_ => _.base))
 
   let _cards = createMemo(() => {
     return [
@@ -290,6 +364,7 @@ function make_cards(table: Table) {
   createEffect(() => {
     let drag_card = m_drag_card()
     let top_cards = m_top_cards()
+    let bases = m_stack_bases()
 
     const center = drag_card?.abs_pos_center
     if (center) {
@@ -301,8 +376,17 @@ function make_cards(table: Table) {
       })
 
       top_cards.forEach(_ => _.flags.hovering_drop = (_ === hit_top))
+
+      let hit_base = bases.find(_ => {
+        let res = _.vs_rect_bounds()
+        if (res) {
+          return hit_rectangle(res, center)
+        }
+      })
+      bases.forEach(_ => _.flags.hovering_drop = (_ === hit_base))
     } else {
       top_cards.forEach(_ => _.flags.hovering_drop = false)
+      bases.forEach(_ => _.flags.hovering_drop = (_ === false))
     }
   })
 
@@ -346,6 +430,9 @@ function make_cards(table: Table) {
     },
     set stacks(stacks: Array<OStack>) {
       owrite(_stacks, stacks)
+    },
+    get bases() {
+      return m_stack_bases()
     },
     get cards() {
       return m_cards()
