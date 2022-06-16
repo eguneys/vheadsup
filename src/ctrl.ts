@@ -23,23 +23,16 @@ function make_solitaire(fen: string) {
   let m_pov = () => read(_pov)
 
   let m_stacks = createMemo(() => {
-    let pov = m_pov()
-    return pov.stacks.map(stack => {
+    return m_pov().stacks.map(stack => {
       let [o_stack_type] = stack.split('@')
 
       return [stack, pile_pos[o_stack_type]].join('@')
     })
   })
 
-  let m_drags = createMemo(() => {
-    let pov = m_pov()
-    return pov.drags
-  })
-
-  let m_drops = createMemo(() => {
-    let pov = m_pov()
-    return pov.drops
-  })
+  let m_reveals = createMemo(() => m_pov().reveals)
+  let m_drags = createMemo(() => m_pov().drags)
+  let m_drops = createMemo(() => m_pov().drops)
 
   function on_apply_drop(rule: DropRule) {
     write(_pov, _ => _.user_apply_drop(rule))
@@ -47,15 +40,10 @@ function make_solitaire(fen: string) {
 
   let table = new Table(on_apply_drop)
 
-  createEffect(() => {
-    table.a_rules.drops = m_drops()
-  })
-  createEffect(() => {
-    table.a_rules.drags = m_drags()
-  })
-  createEffect(() => {
-    table.a_cards.stacks = m_stacks()
-  })
+  createEffect(() => table.a_rules.drops = m_drops())
+  createEffect(() => table.a_rules.drags = m_drags())
+  createEffect(() => table.a_cards.stacks = m_stacks())
+  createEffect(() => table.a_rules.reveals = m_reveals())
 
   return table
 }

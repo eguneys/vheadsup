@@ -100,17 +100,26 @@ export class Table {
       }
     }))
 
-
     this.m_klass = createMemo(() => [
       this.dragging ? 'dragging' : ''
     ])
-
-
   }
 }
 
 
 function make_rules(table: Table) {
+
+  let _reveals = createSignal([])
+  let m_reveals = createMemo(() => {
+    let reveals = read(_reveals)
+    return reveals.map(_ => {
+      let [o_stack_type, o_i] = _.split('@')
+      return {
+        o_stack_type: '__' + o_stack_type,
+        o_i: parseInt(o_i)
+      }
+    })
+  })
 
   let _drags = createSignal([])
   let m_drags = createMemo(() => {
@@ -136,6 +145,12 @@ function make_rules(table: Table) {
   })
 
   return {
+    get reveals() {
+      return m_reveals()
+    },
+    set reveals(reveals: Array<OReveal>) {
+      owrite(_reveals, reveals)
+    },
     set drops(drops: Array<AllowedDrop>) {
       owrite(_drops, drops)
     },
@@ -283,6 +298,8 @@ function make_cards(table: Table) {
       })
 
       top_cards.forEach(_ => _.flags.hovering_drop = (_ === hit_top))
+    } else {
+      top_cards.forEach(_ => _.flags.hovering_drop = false)
     }
   })
 
@@ -323,9 +340,6 @@ function make_cards(table: Table) {
       })
     })
 
-    },
-    get stacks() {
-      return read(_stacks)
     },
     set stacks(stacks: Array<OStack>) {
       owrite(_stacks, stacks)
@@ -414,6 +428,10 @@ function make_card(table: Table, o_card: OCard, m_o_stack_n: number, _pos: Pos) 
 
   let flags = make_card_flags()
 
+  let m_revealing = createMemo(() =>
+    !!table.a_rules.reveals.find(_ => _.o_stack_type === o_stack_type && _.o_i === o_i)
+  )
+
   let m_can_drag = createMemo(() => {
     let o_stack_n = m_o_stack_n()
     return table.a_rules.can_drag(o_stack_type, o_stack_i, o_stack_n, o_i)
@@ -492,6 +510,7 @@ function make_card(table: Table, o_card: OCard, m_o_stack_n: number, _pos: Pos) 
   let m_klass = createMemo(() => ([ 
     flags.hovering_drop ? 'hovering-drop' : '',
     flags.ghosting ? 'ghosting' : '',
+    m_revealing() ? 'revealing' : '',
     m_can_drag() ? 'can-drag' : '',
     m_can_drop() ? 'can-drop' : '',
     ...(o_back ? back_klass : [
@@ -499,7 +518,7 @@ function make_card(table: Table, o_card: OCard, m_o_stack_n: number, _pos: Pos) 
       rank_klasses[o_rank],
       suit_klasses[o_suit]
     ])
-  ]).join(' ').trim());
+  ]).join(' ').trim().replace(/\s+/g, ' '));
 
 
   let m_style = createMemo(() => ({
@@ -521,6 +540,9 @@ function make_card(table: Table, o_card: OCard, m_o_stack_n: number, _pos: Pos) 
     },
     get can_drag() {
       return m_can_drag()
+    },
+    get revealing() {
+      return m_revealing()
     },
     settle_for,
     flags,

@@ -29,6 +29,10 @@ cards card.ghosting {
   opacity: 0.4;
 }
 
+cards card.revealing {
+  animation: blinking 0.6s ease-in-out infinite;
+}
+
 vcardtable.dragging {
   cursor: pointer;
 }
@@ -54,4 +58,13 @@ cards card .front {
   font-weight: bold;
   font-size: 2em;
   text-align: center;
+}
+
+@keyframes blinking {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
 }
