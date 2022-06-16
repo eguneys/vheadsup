@@ -113,6 +113,15 @@ export class Table {
 
 function make_rules(table: Table) {
 
+  let _gaps = createSignal([])
+  let m_gaps = createMemo(() => {
+    let gaps = read(_gaps)
+    return new Map(gaps.map(_ => {
+      let [o_stack_type, gap] = _.split('@')
+      return ['__' + o_stack_type, parseInt(gap)]
+    }))
+  })
+
   let _reveals = createSignal([])
   let m_reveals = createMemo(() => {
     let reveals = read(_reveals)
@@ -149,6 +158,12 @@ function make_rules(table: Table) {
   })
 
   return {
+    set gaps(gaps: Array<OGap>) {
+      owrite(_gaps, gaps)
+    },
+    get gaps() {
+      return m_gaps()
+    },
     get reveals() {
       return m_reveals()
     },
@@ -193,7 +208,7 @@ function make_stack(table: Table, stack: Stack, o_stack_i: number) {
   let _pos = Vec2.make(...o_pos.split('-').map(_ => parseFloat(_)))
 
   let o_stack_type = '__' + o_name
-  let gap = 0.2
+  let gap = table.a_rules.gaps.get(o_stack_type) ?? 0.2
   let o_stack_n = o_cards.length / 2
   let cards = []
 
@@ -285,6 +300,7 @@ function make_stack(table: Table, stack: Stack, o_stack_i: number) {
     base,
     o_name,
     o_stack_n,
+    o_stack_type,
     get pos() {
       return _pos
     },
@@ -304,8 +320,6 @@ function make_cards(table: Table) {
   cards4.forEach(_ => sticky_pos.release_pos(_, make_position(0, 0)))
   backs4.forEach(_ => sticky_pos.release_pos(_, make_position(0, 0)))
 
-
-  let gap = 0.2
   let m_stack_more = createMemo(mapArray(_stacks[0], (_, i) => make_stack(table, _, i()))) 
   let m_stack_cards = createMemo(() => m_stack_more().flatMap(_ => _.cards))
   let m_stack_bases = createMemo(() => m_stack_more().map(_ => _.base))
@@ -356,6 +370,7 @@ function make_cards(table: Table) {
   })
 
 
+  let gap = 0.2
   createEffect(on(() => _drag_target.vs, (vs) => {
     let drags = m_drag_cards()
     drags.forEach((_, o_i, _arr) => {
@@ -403,7 +418,8 @@ function make_cards(table: Table) {
 
 
   function drop_target_for_pos_n(stack_i: number, i: number) {
-    let { pos, o_stack_n }  = m_stack_more()[stack_i]
+    let { o_stack_type, pos, o_stack_n }  = m_stack_more()[stack_i]
+    let gap = table.a_rules.gaps.get(o_stack_type) ?? 0.2
 
     return Vec2.make(pos.x, pos.y + (i + o_stack_n) * gap)
   }

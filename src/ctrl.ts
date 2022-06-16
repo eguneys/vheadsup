@@ -12,6 +12,15 @@ const pile_pos = (() => {
 
     res[`p-${i}`] = `${x}-${y}`
   }
+
+
+  for (let i = 0; i < 4; i++) {
+    let x = 1.3 + 7 * 1.1 + 0.2
+    let y = 0.2 + i * 1.07
+
+    res[`h-${i}`] = `${x}-${y}`
+  }
+
   return res
 })()
 
@@ -44,7 +53,7 @@ function make_solitaire(fen: string, hooks: any) {
 
   function on_apply_drop(rule: DropRule) {
     hooks.send_user_apply_drop(rule)
-    write(_pov, _ => _.user_apply_drop(rule))
+    write(_pov, _ => _.apply_drop(rule))
   }
 
   let table = new Table(on_apply_drop)
@@ -53,6 +62,13 @@ function make_solitaire(fen: string, hooks: any) {
   createEffect(() => table.a_rules.drags = m_drags())
   createEffect(() => table.a_cards.stacks = m_stacks())
   createEffect(() => table.a_rules.reveals = m_reveals())
+
+  table.a_rules.gaps = [
+    `h-0@0`,
+    `h-1@0`,
+    `h-2@0`,
+    `h-3@0`
+  ]
 
   return table
 }
@@ -67,7 +83,7 @@ export default function ctrl(options: {}) {
 
   let hooks = {
     send_user_apply_drop(rule: DropRule) {
-      solitaire.user_apply_drop(rule)
+      solitaire.apply_drop(rule)
       setTimeout(() => {
         owrite(_receive_fen, solitaire.pov.fen)
       }, Math.random() * 600)
