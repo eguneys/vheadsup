@@ -244,6 +244,7 @@ function make_stack(table: Table, stack: Stack) {
   let base_flags = make_card_flags()
 
   let m_base_klass = createMemo(() => [
+    o_stack_type,
     base_flags.hovering_drop ? 'hovering-drop' : '',
     m_can_drop_base() ? 'can-drop' : '',
   ].join(' ').trim().replace(/\s+/g, ' '))

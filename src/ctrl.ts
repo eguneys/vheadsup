@@ -4,10 +4,9 @@ import { createSignal, createMemo, createEffect } from 'solid-js'
 import { Table } from './table'
 
 
-const waste_pos = `0.2-1.4`
 const stock_pos = `0.2-0.2`
 
-const pile_pos = (() => {
+const stack_pos = (() => {
 
   let res = {}
   for (let i = 0; i < 7; i++) {
@@ -24,6 +23,8 @@ const pile_pos = (() => {
 
     res[`h-${i}`] = `${x}-${y}`
   }
+
+  res[`w-0`] = `0.2-1.4`
 
   return res
 })()
@@ -47,14 +48,13 @@ function make_solitaire(fen: string, hooks: any) {
     return m_pov().stacks.map(stack => {
       let [o_stack_type] = stack.split('@')
 
-      return [stack, pile_pos[o_stack_type]].join('@')
+      return [stack, stack_pos[o_stack_type]].join('@')
     })
   })
 
   let m_stock = createMemo(() => [`s-0`, [...Array(8)].map(_ => 'ss').join(''), stock_pos].join('@'))
-  let m_waste = createMemo(() => `w-0@2h3c4d@${waste_pos}`)
 
-  let m_stacks = createMemo(() => [..._m_stacks(), m_stock(), m_waste()])
+  let m_stacks = createMemo(() => [..._m_stacks(), m_stock()])
 
   let m_reveals = createMemo(() => m_pov().reveals)
   let m_drags = createMemo(() => m_pov().drags)
