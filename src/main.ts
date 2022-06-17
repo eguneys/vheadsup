@@ -1,6 +1,7 @@
 import './index.css'
 import './theme.css'
 import './solitaire.css'
+import './headsup.css'
 import { render } from 'solid-js/web'
 
 import App from './view'

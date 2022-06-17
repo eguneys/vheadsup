@@ -2,7 +2,6 @@
   box-sizing: border-box;
 }
 vcardtable {
-  font-size: calc(20px + 2 * ((100vw - 320px) / 880));
   user-select: none;
   position: relative;
   width: 100%;

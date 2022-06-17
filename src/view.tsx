@@ -12,22 +12,33 @@ function unbindable(
 
 type Unbind = () => void
 
-
-const App = table => props => {
-
-
-  let unbinds = []
-
-  unbinds.push(unbindable(document, 'scroll', () => table.onScroll(), { capture: true, passive: true }))
-  unbinds.push(unbindable(window, 'resize', () => table.onScroll(), { passive: true }))
-
-  onCleanup(() => {
-    unbinds.forEach(_ => _())
-  })
-
+const VHeadsUp = props => {
+  let { table } = props
 
   return (<>
-      <vcardtable ref={_ => setTimeout(() => table.$ref=_)} class={table.klass}>
+    <vheadsup ref={_ => setTimeout(() => table.$ref=_)} class={table.klass}>
+      <cards>
+      <For each={table.cards}>{card =>
+        <Card ref={_ => setTimeout(() => card.$ref = _ ) } card={card}/>
+      }</For>
+      </cards>
+      <chips-w>
+        <For each={table.chips}>{chips =>
+          <Chips chips={chips}/>
+        }</For>
+      </chips-w>
+    </vheadsup>
+      </>)
+}
+
+
+const Chips = props => {
+  return (<chips style={props.chips.style} class={props.chips.klass}>{props.chips.amount}</chips>)
+}
+
+const VTable = props => {
+  return (
+    <vcardtable ref={_ => setTimeout(() => table.$ref=_)} class={table.klass}>
        <bases>
          <For each={table.bases}>{ (base, i) =>
            <Base base={base}/>
@@ -39,13 +50,12 @@ const App = table => props => {
            fallback= {
            <Card ref={_ => setTimeout(() => card.$ref = _ ) } onMouseDown={_ => card.mouse_down = true} card={card}/>
            }>
-
            <Card card={card}/>
            </Show>
          }</For>
        </cards>
-      </vcardtable>
-      </>)
+      </vcardtable>)
+
 }
 
 const Base = props => {
@@ -63,5 +73,31 @@ const Card = props => {
         <div class="front">{props.card.suit}</div>
       </card>)
 }
+
+
+
+const tables = {
+  'headsup': VHeadsUp
+}
+
+const App = table => props => {
+
+
+  let unbinds = []
+
+  unbinds.push(unbindable(document, 'scroll', () => table.onScroll(), { capture: true, passive: true }))
+  unbinds.push(unbindable(window, 'resize', () => table.onScroll(), { passive: true }))
+
+  onCleanup(() => {
+    unbinds.forEach(_ => _())
+  })
+
+
+  return (<>
+    <Dynamic component={tables[table.view]} table={table}/>
+    </>)
+}
+
+
 
 export default App

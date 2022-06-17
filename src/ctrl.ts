@@ -2,6 +2,7 @@ import { Solitaire, SolitairePov, _deck } from 'lheadsup'
 import { read, write, owrite } from './play'
 import { createSignal, createMemo, createEffect } from 'solid-js'
 import { Table } from './table'
+import { HeadsUp } from './headsup'
 
 
 const stock_pos = `0.2-0.2`
@@ -93,8 +94,46 @@ function make_solitaire(fen: string, hooks: any) {
 }
 
 
+function make_headsup(fen: string, hooks: any) {
+
+  let table = new HeadsUp({})
+
+  setTimeout(() => {
+  table.a_cards.cards = [
+    `fl-0@2h@0.2-2`,
+    `fl-1@3h@1.4-2`,
+    `fl-2@4h@2.6-2`,
+    `tr@5h@4-2`,
+    `rv@6h@5.2-2`,
+    `h0-0@7c@4.2-3.2`,
+    `h0-1@5c@5.3-3.2`,
+  ]
+
+  'a' === 'b'
+
+  table.a_chips.chips = [
+    `s@4b@5-5`,
+    `b@4b@5-20`,
+    `o@2b@5-10`,
+  ]
+
+  setTimeout(() => {
+    table.a_chips.chips = [
+      `s@2b@5-5`,
+      `b@2b@5-20`,
+      `o@6b@5-10`,
+    ]
+  }, 4000)
+
+  }, 2000)
+
+  return table
+}
+
+
 export default function ctrl(options: {}) {
 
+  /*
   let solitaire = Solitaire.make(_deck.slice(0))
   let fen = solitaire.pov.fen
 
@@ -116,5 +155,14 @@ export default function ctrl(options: {}) {
     _receive_fen
   }
 
-  return make_solitaire(fen, hooks)
+  make_solitaire(fen, hooks)
+ */
+  
+
+  let fen = ``
+
+  let hooks = {
+  }
+
+  return make_headsup(fen, hooks)
 }
