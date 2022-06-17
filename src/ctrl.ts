@@ -67,7 +67,8 @@ function make_solitaire(fen: string, hooks: any) {
   }
 
   function on_apply_click() {
-
+    hooks.send_user_apply_click()
+    write(_pov, _ => _.apply_click())
   }
 
   let table = new Table({
@@ -100,6 +101,12 @@ export default function ctrl(options: {}) {
   let _receive_fen = createSignal()
 
   let hooks = {
+    send_user_apply_click() {
+      solitaire.apply_click()
+      setTimeout(() => {
+        owrite(_receive_fen, solitaire.pov.fen)
+      }, Math.random() * 600)
+    },
     send_user_apply_drop(rule: DropRule) {
       solitaire.apply_drop(rule)
       setTimeout(() => {
