@@ -662,6 +662,7 @@ function make_card(table: Table, o_card: OCard, m_o_stack_n: number, _pos: Pos) 
     m_revealing() ? 'revealing' : '',
     m_can_drag() ? 'can-drag' : '',
     m_can_drop() ? 'can-drop' : '',
+    o_drag ? 'dragging' : '',
     ...(o_back ? back_klass : [
       colors[o_suit],
       rank_klasses[o_rank],

@@ -47,6 +47,10 @@ cards card {
   transition: opacity 0.2s;
 }
 
+cards card.dragging {
+  box-shadow: 2px 2px 8px black;
+}
+
 cards card.ghosting {
   border: 2px dashed white;
   opacity: 0.4;
