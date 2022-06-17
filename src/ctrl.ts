@@ -3,13 +3,15 @@ import { read, write, owrite } from './play'
 import { createSignal, createMemo, createEffect } from 'solid-js'
 import { Table } from './table'
 
-const stock_pos = `0-0`
+
+const waste_pos = `0.2-1.4`
+const stock_pos = `0.2-0.2`
 
 const pile_pos = (() => {
 
   let res = {}
   for (let i = 0; i < 7; i++) {
-    let x = 1.3 + i * 1.1
+    let x = 1.4 + i * 1.1
     let y = 0.2
 
     res[`p-${i}`] = `${x}-${y}`
@@ -41,7 +43,7 @@ function make_solitaire(fen: string, hooks: any) {
 
   let m_pov = () => read(_pov)
 
-  let m_stacks = createMemo(() => {
+  let _m_stacks = createMemo(() => {
     return m_pov().stacks.map(stack => {
       let [o_stack_type] = stack.split('@')
 
@@ -49,24 +51,34 @@ function make_solitaire(fen: string, hooks: any) {
     })
   })
 
-  let m_stock = createMemo(() => [`s-0`, [...Array(8)].map(_ => 'zz').join(''), stock_pos].join('@'))
+  let m_stock = createMemo(() => [`s-0`, [...Array(8)].map(_ => 'ss').join(''), stock_pos].join('@'))
+  let m_waste = createMemo(() => `w-0@2h3c4d@${waste_pos}`)
+
+  let m_stacks = createMemo(() => [..._m_stacks(), m_stock(), m_waste()])
 
   let m_reveals = createMemo(() => m_pov().reveals)
   let m_drags = createMemo(() => m_pov().drags)
   let m_drops = createMemo(() => m_pov().drops)
+
 
   function on_apply_drop(rule: DropRule) {
     hooks.send_user_apply_drop(rule)
     write(_pov, _ => _.apply_drop(rule))
   }
 
-  let table = new Table(on_apply_drop)
+  function on_apply_click() {
+
+  }
+
+  let table = new Table({
+    on_apply_click,
+    on_apply_drop
+  })
 
   createEffect(() => table.a_rules.drops = m_drops())
   createEffect(() => table.a_rules.drags = m_drags())
   createEffect(() => table.a_cards.stacks = m_stacks())
   createEffect(() => table.a_rules.reveals = m_reveals())
-  createEffect(() => table.a_cards.stock = m_stock())
 
   table.a_rules.gaps = [
     `h-0@0`,

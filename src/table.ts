@@ -33,6 +33,7 @@ function make_hooks(table: Table) {
       table.cards.forEach(_ => _.mouse_down = false)
     },
     on_click() {
+      return table.a_cards.find_on_click()
     },
     find_inject_drag() {
     },
@@ -72,11 +73,15 @@ export class Table {
   }
 
   apply_drop(rule: DropRule) {
-    this.on_apply_drop(rule)
+    this.hooks.on_apply_drop(rule)
+  }
+
+  apply_click() {
+    this.hooks.on_apply_click()
   }
 
 
-  constructor(readonly on_apply_drop: (rule: DropRule) => void) {
+  constructor(readonly hooks: any) {
 
     this._$ref = createSignal(undefined, { equals: false })
     let m_ref = createMemo(() => read(this._$ref))
@@ -208,7 +213,7 @@ function make_stack(table: Table, stack: Stack) {
   let _pos = Vec2.make(...o_pos.split('-').map(_ => parseFloat(_)))
 
   let o_stack_type = '__' + o_name
-  let gap = table.a_rules.gaps.get(o_stack_type) ?? 0.2
+  let m_gap = createMemo(() => table.a_rules.gaps.get(o_stack_type) ?? 0.2)
   let o_stack_n = o_cards.length / 2
   let cards = []
 
@@ -216,7 +221,7 @@ function make_stack(table: Table, stack: Stack) {
     let res = []
     for (let i = 0; i < o_cards.length; i+=2) {
       let o_i = i/ 2
-      let v = Vec2.make(_pos.x, _pos.y + (o_i) * gap)
+      let v = Vec2.make(_pos.x, _pos.y + (o_i) * m_gap())
       res.push([o_i, v])
     }
     return new Map(res)
@@ -325,8 +330,6 @@ function make_cards(table: Table) {
   let _drag_stack = createSignal()
   let _stacks = createSignal([])
 
-  let _stock = createSignal()
-
   let _can_drop_args = createSignal()
 
   let sticky_pos = make_sticky_pos((c: OCard, v: Vec2) => make_position(v.x, v.y))
@@ -336,14 +339,10 @@ function make_cards(table: Table) {
 
   let m_stack_more = createMemo(mapArray(_stacks[0], (_, i) => make_stack(table, _, i()))) 
   let m_stack_bases = createMemo(() => m_stack_more().map(_ => _.base))
-
-  let m_stock = createMemo(() => [read(_stock)].filter(Boolean).map(_ => make_stack(table, _, 0)))
-
   let m_drag_stacks = createMemo(() => [read(_drag_stack)].filter(Boolean).map(_ => make_stack(table, _, 0)))
 
   let m_stacks = createMemo(() => [
     ...m_stack_more(),
-    ...m_stock(),
     ...m_drag_stacks()
   ])
 
@@ -471,10 +470,6 @@ function make_cards(table: Table) {
     })
 
     },
-    set stock(stock: OStack) {
-      owrite(_stock, stock)
-    },
-
     set stacks(stacks: Array<OStack>) {
       owrite(_stacks, stacks)
     },
@@ -492,6 +487,14 @@ function make_cards(table: Table) {
     },
     stack_by_type(o_stack_type: string) {
       return m_stacks_by_type().get(o_stack_type)
+    },
+    find_on_click() {
+      let cards = m_cards()
+      let card = cards.find(_ => _.mouse_down)
+
+      if (card && card.can_click) {
+        table.apply_click()
+      }
     },
     find_on_drag_start() {
       if (read(_drag_stack)) {
@@ -565,6 +568,7 @@ function make_card(table: Table, o_card: OCard, m_o_stack_n: number, _pos: Pos) 
   let o_back = o_suit === o_rank
   let o_drag = o_stack_type[2] === 'd'
   let m_o_top = createMemo(() => o_i === m_o_stack_n() - 1)
+  let can_click = o_suit === o_rank && o_suit === 's'
 
   let m_lerp_i = createMemo(() => 1 - (o_i / m_o_stack_n()))
 
@@ -672,6 +676,7 @@ function make_card(table: Table, o_card: OCard, m_o_stack_n: number, _pos: Pos) 
 
 
   return {
+    can_click,
     get drop_rule() {
       return m_drop_rule()
     },
